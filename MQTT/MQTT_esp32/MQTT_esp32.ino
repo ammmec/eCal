@@ -70,7 +70,7 @@ void setup() {
         }
     }
     // Publish and subscribe
-    client.publish(topic, "Hi, I'm ESP32 ^^");
+    client.publish(topic, "ESP32 is awake!");
     client.subscribe(topic);
 }
 

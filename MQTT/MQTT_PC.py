@@ -30,7 +30,7 @@ def connect_mqtt():
 
 
 def publish(client, msg):
-    result = client.publish(topic, msg)
+    result = client.publish(topic, msg, retain=True)
     # result: [0, 1]
     status = result[0]
     if status == 0:
@@ -38,12 +38,20 @@ def publish(client, msg):
     else:
         print(f"Failed to send message to topic {topic}")
 
+def subscribe(client: mqtt_client):
+    def on_message(client, userdata, msg):
+        print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+
+    client.subscribe(topic)
+    client.on_message = on_message
 
 def run():
     client = connect_mqtt()
     client.loop_start()
-    publish(client, "Hello from Python")
+    publish(client, "Good morning")
     client.loop_stop()
+    # subscribe(client)
+    # client.loop_forever()
 
 
 if __name__ == '__main__':
