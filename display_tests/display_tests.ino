@@ -5,16 +5,24 @@
 #include <Fonts/FreeMonoBold9pt7b.h>
 #include "heart.h"
 
+#define PWR  D11  // 7
+#define BUSY D7   // 18
+#define RST  D6   // 1
+#define DC   D3   // 14
+#define CS   SS   // 5
+
 // alternately you can copy the constructor from GxEPD2_display_selection.h or GxEPD2_display_selection_added.h to here
-GxEPD2_3C < GxEPD2_750c_Z08, GxEPD2_750c_Z08::HEIGHT / 4 > display(GxEPD2_750c_Z08(/*CS=*/ SS, /*DC=*/ D3, /*RST=*/ D6, /*BUSY=*/ D7)); // GDEW075Z08 800x480, GD7965
+GxEPD2_3C < GxEPD2_750c_Z08, GxEPD2_750c_Z08::HEIGHT / 4 > display(GxEPD2_750c_Z08(/*CS=*/ CS, /*DC=*/ DC, /*RST=*/ RST, /*BUSY=*/ BUSY)); // GDEW075Z08 800x480, GD7965
 
 void setup()
 {
-  pinMode(D11, OUTPUT);
-  pinMode(D6, OUTPUT);
-  pinMode(D3, OUTPUT);
-  pinMode(SS, OUTPUT);
+  Serial.println("Woke up");
+  pinMode(PWR, OUTPUT);
+  pinMode(CS, OUTPUT);
+  pinMode(DC, OUTPUT);
+  pinMode(RST, OUTPUT);
   digitalWrite(D11, HIGH);
+  //display.init(115200);
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   //display.clearScreen();
   Serial.println("Starting up");
