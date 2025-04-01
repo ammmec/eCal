@@ -2,8 +2,8 @@ import requests
 import icalendar
 from datetime import datetime
 from datetime import timedelta
+from data_secure import CLIENT_ID
 
-CLIENT_ID = "t7SuHCjdalstLwG6ElnrJgn8URLbMYIwAOrkzcIa" # Public application of the Racó API
 FORMAT = "ics"  # ics is easier to treat for calendars
 
 # Get today's schedule (start_date <= today < end_date)

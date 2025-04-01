@@ -1,13 +1,8 @@
 from paho.mqtt import client as mqtt_client
 import random
 import ssl
+from data_secure import username, password, broker, topic, port
 
-broker = "****"
-topic = "class/A6001"
-port = 8883
-
-username = "****"
-password = "****"
 
 
 # Generate a Client ID with the publish prefix.
@@ -47,11 +42,11 @@ def subscribe(client: mqtt_client):
 
 def run():
     client = connect_mqtt()
-    client.loop_start()
-    publish(client, "Good morning")
-    client.loop_stop()
-    # subscribe(client)
-    # client.loop_forever()
+    # client.loop_start()
+    # publish(client, "Good morning")
+    # client.loop_stop()
+    subscribe(client)
+    client.loop_forever()
 
 
 if __name__ == '__main__':

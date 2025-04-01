@@ -1,46 +1,14 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
-
-// WiFi
-const char* ssid = "****";
-const char* password = "****";
-
-// MQTT Broker
-const char *mqtt_broker = "****";
-const char *topic = "class/A6001";
-const char *mqtt_username = "****";
-const char *mqtt_password = "****";
-const int mqtt_port = 8883;
-static const char ca_cert[]
-PROGMEM = R"EOF(
------BEGIN CERTIFICATE-----
-MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
-MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3
-d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD
-QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT
-MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j
-b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG
-9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB
-CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97
-nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt
-43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P
-T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4
-gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO
-BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR
-TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw
-DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr
-hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg
-06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF
-PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls
-YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk
-CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
------END CERTIFICATE-----
-)EOF";
+#include "mqtt_secure.h"
 
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
+const char *schedule_topics [] = {"schedule/A6/0/A6001", "schedule/A6/0", "schedule/A6", "schedule"};
+const char *config_topics [] = {"config/A6/0/A6001", "config/A6/0", "config/A6", "config"};
+const char *ann_topics [] = {"ann/A6/0/A6001", "ann/A6/0", "ann/A6", "ann"};
 
 void setup() {
     // Set software serial baud to 115200;
@@ -69,9 +37,10 @@ void setup() {
             delay(2000);
         }
     }
-    // Publish and subscribe
-    client.publish(topic, "ESP32 is awake!");
-    client.subscribe(topic);
+    // Subscribe to the relevant topics
+    for (int i = 0; i < 4; ++i) {
+      client.subscribe(topic[i]);
+    }
 }
 
 void callback(char *topic, byte *payload, unsigned int length) {
@@ -83,6 +52,31 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }
     Serial.println();
     Serial.println("-----------------------");
+
+    if(strcmp(topic, schedule_topics[0]) == 0) { // schedule: clasroom specific
+    }
+    else if(strcmp(topic, schedule_topics[1]) == 0) { // schedule: floor specific
+    }
+    else if(strcmp(topic, schedule_topics[2]) == 0) { // schedule: building specific
+    }
+    else if(strcmp(topic, schedule_topics[3]) == 0) { // schedule: all devices
+    }
+    else if(strcmp(topic, config_topics[0]) == 0) { // config: classroom specific
+    }
+    else if(strcmp(topic, config_topics[1]) == 0) { // config: floor specific
+    }
+    else if(strcmp(topic, config_topics[2]) == 0) { // config: building specific
+    }
+    else if(strcmp(topic, config_topics[3]) == 0) { // config: all devices
+    }
+    else if(strcmp(topic, ann_topics[0]) == 0) { // announcements: classroom specific
+    }
+    else if(strcmp(topic, ann_topics[1]) == 0) { // announcements: floor specific
+    }
+    else if(strcmp(topic, ann_topics[2]) == 0) { // announcements: building specific
+    }
+    else if(strcmp(topic, ann_topics[3]) == 0) { // announcements: all devices
+    }
 }
 
 void loop() {
