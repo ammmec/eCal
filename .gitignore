@@ -15,6 +15,7 @@
 # Precompiled Headers
 *.gch
 *.pch
+*.pyc
 
 # Libraries
 *.lib
@@ -50,3 +51,7 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Confidential files (e.g. passwords)
+*_secure.h
+*_secure.py
