@@ -18,23 +18,20 @@ void setup()
 {
   Serial.println("Woke up");
   pinMode(PWR, OUTPUT);
-  pinMode(CS, OUTPUT);
-  pinMode(DC, OUTPUT);
-  pinMode(RST, OUTPUT);
-  digitalWrite(D11, HIGH);
+  digitalWrite(PWR, HIGH);
   //display.init(115200);
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
   //display.clearScreen();
   Serial.println("Starting up");
-  helloWorld();
-  digitalWrite(D11, LOW);
+  testing();
   Serial.println("Going to sleep");
   display.hibernate();
+  digitalWrite(PWR, LOW);
 }
 
 const char test[] = "Test Text";
 
-void helloWorld()
+void testing()
 {
   display.setRotation(1);
   display.setFont(&FreeMonoBold9pt7b);
