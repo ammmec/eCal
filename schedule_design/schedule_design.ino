@@ -1,6 +1,11 @@
 #include <GxEPD2_3C.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
+#include <Fonts/FreeMono9pt7b.h>
 #include "schedule.h"
+
+#include <WiFi.h>
+#include <time.h>
+#include "wifi_secure.h"
 
 #define PWR  D11  // 7
 #define BUSY D7   // 18
@@ -31,6 +36,12 @@
 
 // Number of classes displayed
 #define NUM_CLASSES 13
+#define START_HOUR 8
+
+// For getting the current time
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 3600;
+const int   daylightOffset_sec = 3600;
 
 // alternately you can copy the constructor from GxEPD2_display_selection.h or GxEPD2_display_selection_added.h to here
 GxEPD2_3C < GxEPD2_750c_Z08, GxEPD2_750c_Z08::HEIGHT / 4 > display(GxEPD2_750c_Z08(/*CS=*/ CS, /*DC=*/ DC, /*RST=*/ RST, /*BUSY=*/ BUSY)); // GDEW075Z08 800x480, GD7965
@@ -129,23 +140,20 @@ void drawHours() {
 
 // Given an array of strings, where the string is the class and the position is the hour it is done in,
 // print each single class in the schedule
-void drawClasses(char classes[][128]) {
+void drawClasses(char classes[][128], char durations[]) {
   bool colorRed = true;
 
-  for (int i = 0; i < NUM_CLASSES; ++i) {
-    if (strcmp(classes[i], "") == 0) continue; // If the classroom is empty, continue
-
-    char duration = 1;
-    int j = i;
-
-    // Check consecutive hours
-    while (j + 1 < NUM_CLASSES && strcmp(classes[j], classes[j + 1]) == 0) {
-      ++duration;
-      ++j;
+  char i = 0;
+  while (i < NUM_CLASSES) {
+    if (durations[i] == 0) {
+      ++i;
+      continue; // If the classroom is empty, continue
     }
 
+    char duration = durations[i];
+
     drawClass(i, classes[i], duration, colorRed ? GxEPD_RED : GxEPD_BLACK);
-    i = j;
+    i += duration;
     colorRed = !colorRed;
   }
 
@@ -158,7 +166,7 @@ void drawQR() {
   const uint16_t qr_height = 125;
 
   uint16_t qr_x = (DISPLAY_WIDTH + SECOND_COLUMN - qr_width) / 2;
-  uint16_t qr_y = DISPLAY_HEIGHT - qr_height - BOTTOM_MARGIN - 5;
+  uint16_t qr_y = DISPLAY_HEIGHT - qr_height - BOTTOM_MARGIN;
 
   const char text[] = "Horari sencer:";
   int16_t tbx, tby;
@@ -175,11 +183,103 @@ void drawQR() {
   display.drawBitmap(qr_x, qr_y, qr, qr_width, qr_height, GxEPD_BLACK);
 }
 
+void drawCurrentNextClass(uint16_t current_hour, char classes[][128], char durations[]) {
+  char currClass[64];
+  char nextClass[64];
+  uint16_t ind_curr_start = current_hour-START_HOUR;
+  uint16_t ind_next_start;
+  if (strcmp(classes[ind_curr_start], "") != 0) {
+    snprintf(currClass, sizeof(currClass), classes[ind_curr_start]);
+    while (durations[ind_curr_start]==0) --ind_curr_start;
+  }
+  else {
+    snprintf(currClass, sizeof(currClass), "-");
+  }
+
+  char i = ind_curr_start + durations[current_hour];
+  while (i < NUM_CLASSES) {
+    if (strcmp(classes[i], currClass) != 0 && durations[i] != 0) {
+      snprintf(nextClass, sizeof(nextClass), classes[i]);
+      ind_next_start = i;
+      i = NUM_CLASSES;
+    }
+    ++i;
+    Serial.println(i-'0');
+  }
+  if (i == NUM_CLASSES) snprintf(nextClass, sizeof(nextClass), "-");
+
+  char text[] = "Classe en curs:";
+  uint16_t x = SECOND_COLUMN + 2*MARGIN;
+  uint16_t y = MARGIN+CHAR_HEIGHT;
+  display.setCursor(x, y);
+  display.print("Classe en curs:");
+
+  display.setCursor(x, y+(CHAR_HEIGHT+MARGIN*2)*4);
+  display.print("Propera classe:");
+
+  y += CHAR_HEIGHT+MARGIN*2;
+
+  display.setFont(&FreeMono9pt7b);
+  display.setCursor(x, y);
+  y += CHAR_HEIGHT+MARGIN*2;
+  display.print(currClass);
+  display.setCursor(x, y);
+  y += CHAR_HEIGHT+MARGIN*2;
+  snprintf(currClass, sizeof(currClass), "%d:00-%d:00", START_HOUR+ind_curr_start, START_HOUR+ind_curr_start+durations[ind_curr_start]);
+  display.print(currClass);
+
+  y += (CHAR_HEIGHT+MARGIN*2)*2;
+  display.setCursor(x, y);
+  y += CHAR_HEIGHT+MARGIN*2;
+  display.print(nextClass);
+  display.setCursor(x, y);
+  y += CHAR_HEIGHT+MARGIN*2;
+  snprintf(nextClass, sizeof(nextClass), "%d:00-%d:00", START_HOUR+ind_next_start, START_HOUR+ind_next_start+durations[ind_next_start]);
+  display.print(nextClass);
+
+  display.setFont(&FreeMonoBold9pt7b);
+  display.drawFastHLine(SECOND_COLUMN, y, DISPLAY_WIDTH - SECOND_COLUMN, GxEPD_BLACK);
+}
+
 void drawSchedule() {
   display.setRotation(1);
   display.firstPage();
   display.setFullWindow();
   display.setFont(&FreeMonoBold9pt7b);
+
+
+  // Get current time (to tell what class is next)
+  // Connect to Wi-Fi
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  /*WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected.");
+  
+  // Init and get the time
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  uint16_t hour;
+
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    hour = timeinfo.tm_hour;
+    uint16_t minute = timeinfo.tm_min;
+
+    if (minute >= 50) {
+      hour = (hour + 1) % 24; // Wrap around to 0 if it's 23:50+
+    }
+  } else {
+    Serial.println("Failed to get time");
+  }
+  
+  //disconnect WiFi as it's no longer needed
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  */
 
   Serial.println("Starting to print!");
   do {
@@ -192,7 +292,12 @@ void drawSchedule() {
       "", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",
       "GEI FM 20T", "", "GEI PRO1 20T", "", "", ""
     };
-    drawClasses(classes);
+    char durations[NUM_CLASSES] = {
+      0, 1, 2, 0, 3, 0, 0,
+      1, 0, 1, 0, 0, 0
+    };
+    drawClasses(classes, durations);
+    drawCurrentNextClass(12, classes, durations); // TODO: change number to "hour"
 
     drawQR();
   } while (display.nextPage());
