@@ -1,22 +1,4 @@
-#include <GxEPD2_3C.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
-#include <Fonts/FreeMono9pt7b.h>
-#include "schedule.h"
-
-#include <WiFi.h>
-#include <time.h>
-#include "wifi_secure.h"
-
-// Pin definition
-#define PWR  D11  // 7
-#define BUSY D7   // 18
-#define RST  D6   // 1
-#define DC   D3   // 14
-#define CS   SS   // 5
-
-// Rectangle (1h class) height and width
-#define RECT_HEIGHT 61
-#define RECT_WIDTH 200
+#include "schedule_design.h"
 
 // Character sizes (including spacing)
 #define CHAR_HEIGHT 9
@@ -27,22 +9,53 @@
 #define BOTTOM_MARGIN 3
 #define MARGIN 5 // General margins for text and stuff
 
-// Display size
-#define DISPLAY_HEIGHT 800
-#define DISPLAY_WIDTH 480
-
-// x where the columns are. Taking into account left and right margin
-#define FIRST_COLUMN CHAR_WIDTH*6+MARGIN*2 // Between hours and classes
-#define SECOND_COLUMN FIRST_COLUMN+RECT_WIDTH+MARGIN*2 // Between classes and extras
-
 // Class related information
 #define NUM_CLASSES 13 // Number of classes displayed
 #define START_HOUR 8 // First hour to be displayed
 #define CLOSED  "TANCAT"
 
-// Horizontal lines positioning
-uint16_t first_row; // To know where the height of the end of "current and next class"
-uint16_t second_row; // Between announcements and QR code
+struct LayoutConfig {
+  bool showLines;
+  bool showQR;
+  bool showAnnouncements;
+  bool showCurrNext;
+
+  char numClassesDisplayed;
+  // Rectangle (1h class) height and width
+  uint16_t classHeight;
+  uint16_t classWidth;
+
+  uint16_t columns[2];
+  uint16_t rows[2];
+};
+
+LayoutConfig defaultLayout = {
+  .showLines = true,
+  .showQR = true,
+  .showAnnouncements = true,
+  .showCurrNext = true,
+
+  .numClassesDisplayed = 13,
+  .classHeight = 61,
+  .classWidth = 200,
+
+  .columns = {CHAR_WIDTH*6+MARGIN*2, CHAR_WIDTH*6+MARGIN*2+200+MARGIN*2} // classWidth = 200
+};
+
+LayoutConfig defaultNoLinesLayout {
+  .showLines = false,
+  .showQR = true,
+  .showAnnouncements = true,
+  .showCurrNext = true,
+
+  .numClassesDisplayed = 13,
+  .classHeight = 61,
+  .classWidth = 200,
+
+  .columns = {CHAR_WIDTH*6+MARGIN*2, CHAR_WIDTH*6+MARGIN*2+200+MARGIN*2} // classWidth = 200
+};
+
+LayoutConfig config;
 
 char curr_class_pos;
 
@@ -76,9 +89,9 @@ void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], ui
 // name <- name of the class
 // duration <- how many hours the class lasts
 void drawClass(char position, char name[], char duration) {
-  uint16_t x = FIRST_COLUMN + MARGIN;
-  uint16_t y = position * RECT_HEIGHT + TOP_MARGIN;
-  uint16_t h = RECT_HEIGHT * duration;
+  uint16_t x = config.columns[0] + MARGIN;
+  uint16_t y = position * config.classHeight + TOP_MARGIN;
+  uint16_t h = config.classHeight * duration;
   uint16_t color = (position == curr_class_pos) ? GxEPD_RED : GxEPD_BLACK;
 
   // Center text
@@ -86,11 +99,11 @@ void drawClass(char position, char name[], char duration) {
   uint16_t tbw, tbh;
   display.getTextBounds(name, 0, 0, &tbx, &tby, &tbw, &tbh);
 
-  uint16_t tx = x + (RECT_WIDTH - tbw) / 2;
+  uint16_t tx = x + (config.classWidth - tbw) / 2;
   uint16_t ty = y + (h - tbh) / 2 + CHAR_HEIGHT;
 
   // Draw dotted background manually
-  /*for (int i = x; i < x + RECT_WIDTH; ++i) {
+  /*for (int i = x; i < x + config.classWidth; ++i) {
     for (int j = y + MARGIN; j < y + h - MARGIN; ++j) {
       if (( i % 3 == 0 && j % 3 == 0)
             || ((i - 1) % 3 == 0 && (j - 1) % 3 == 0)
@@ -101,19 +114,19 @@ void drawClass(char position, char name[], char duration) {
 
   if(strcmp(name, CLOSED) != 0) { // If the class is closed no need to draw the bitmap
     // Draw dotted background in bitmap
-    display.drawBitmap(x, y+MARGIN, class_bg, RECT_WIDTH, RECT_HEIGHT-2*MARGIN, color);
+    display.drawBitmap(x, y+MARGIN, class_bg, config.classWidth, config.classHeight-2*MARGIN, color);
     // Extra bitmap to take the gap into account and the longer class
     for (int i = 1; i < duration; ++i) {
-      display.drawFastHLine(x, y+i*RECT_HEIGHT, RECT_WIDTH, GxEPD_WHITE);
-      display.drawBitmap(x, y+i*RECT_HEIGHT-MARGIN, class_bg, RECT_WIDTH, RECT_HEIGHT, color);
+      if (config.showLines) display.drawFastHLine(x, y+i*config.classHeight, config.classWidth, GxEPD_WHITE);
+      display.drawBitmap(x, y+i*config.classHeight-MARGIN, class_bg, config.classWidth, config.classHeight, color);
     }
   
     // Border
-    display.drawRect(x, y + MARGIN, RECT_WIDTH, h - MARGIN * 2, color);
+    display.drawRect(x, y + MARGIN, config.classWidth, h - MARGIN * 2, color);
   }
   else {
-    display.writeLine (x-MARGIN, y, x+RECT_WIDTH+MARGIN, y+RECT_HEIGHT, GxEPD_BLACK);
-    display.writeLine (x-MARGIN, y+RECT_HEIGHT, x+RECT_WIDTH+MARGIN, y, GxEPD_BLACK);
+    display.writeLine (x-MARGIN, y, x+config.classWidth+MARGIN, y+config.classHeight, GxEPD_BLACK);
+    display.writeLine (x-MARGIN, y+config.classHeight, x+config.classWidth+MARGIN, y, GxEPD_BLACK);
   }
 
   // White outline
@@ -130,12 +143,12 @@ void drawHours() {
   // Giving some margin on the left
   uint16_t x = MARGIN;
   // y position ->  TOP_MARGIN for the border
-  //                (RECT_HEIGHT + CHAR_HEIGHT)/2 to center inside its spot
-  uint16_t y = TOP_MARGIN + (RECT_HEIGHT + CHAR_HEIGHT) / 2;
+  //                (config.classHeight + CHAR_HEIGHT)/2 to center inside its spot
+  uint16_t y = TOP_MARGIN + (config.classHeight + CHAR_HEIGHT) / 2;
   char pos = 1;
 
   // Line to separate hours with the schedule
-  display.drawFastVLine(FIRST_COLUMN, TOP_MARGIN, DISPLAY_HEIGHT - BOTTOM_MARGIN, GxEPD_BLACK);
+  if (config.showLines) display.drawFastVLine(config.columns[0], TOP_MARGIN, DISPLAY_HEIGHT - BOTTOM_MARGIN, GxEPD_BLACK);
 
   for (char i = 8; i < 21; ++i) {
     char hours[7] = "      ";  // 6 chars + null
@@ -146,8 +159,8 @@ void drawHours() {
     display.setCursor(x, y);
     display.print(hours);
 
-    if (i != 20) display.drawFastHLine(0, TOP_MARGIN + RECT_HEIGHT * pos++, FIRST_COLUMN + RECT_WIDTH + MARGIN * 2, GxEPD_BLACK);
-    y += RECT_HEIGHT;
+    if (config.showLines && i != 20) display.drawFastHLine(0, TOP_MARGIN + config.classHeight * pos++, config.columns[0] + config.classWidth + MARGIN * 2, GxEPD_BLACK);
+    y += config.classHeight;
   }
 }
 
@@ -168,14 +181,14 @@ void drawClasses(char classes[][128], char durations[]) {
     i += duration;
   }
 
-  display.drawFastVLine(SECOND_COLUMN, TOP_MARGIN, DISPLAY_HEIGHT - BOTTOM_MARGIN, GxEPD_BLACK);
+  if (config.showLines) display.drawFastVLine(config.columns[1], TOP_MARGIN, DISPLAY_HEIGHT - BOTTOM_MARGIN, GxEPD_BLACK);
 }
 
 // Draws a QR code of the website where the full schedule can be found
 void drawQR() {
   const uint16_t qr_size = 125;
 
-  uint16_t qr_x = (DISPLAY_WIDTH + SECOND_COLUMN - qr_size) / 2;
+  uint16_t qr_x = (DISPLAY_WIDTH + config.columns[1] - qr_size) / 2;
   uint16_t qr_y = DISPLAY_HEIGHT - qr_size - BOTTOM_MARGIN;
   display.drawBitmap(qr_x, qr_y, qr, qr_size, qr_size, GxEPD_BLACK);
 
@@ -184,11 +197,11 @@ void drawQR() {
   uint16_t tbw, tbh;
   display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
 
-  uint16_t text_x = (DISPLAY_WIDTH + SECOND_COLUMN - tbw) / 2;
+  uint16_t text_x = (DISPLAY_WIDTH + config.columns[1] - tbw) / 2;
   uint16_t text_y = qr_y - tbh;
 
-  second_row = text_y - CHAR_HEIGHT - MARGIN*2;
-  display.drawFastHLine(SECOND_COLUMN, text_y - CHAR_HEIGHT - MARGIN*2, DISPLAY_WIDTH - SECOND_COLUMN, GxEPD_BLACK);
+  config.rows[1] = text_y - CHAR_HEIGHT - MARGIN*2;
+  if (config.showLines) display.drawFastHLine(config.columns[1], text_y - CHAR_HEIGHT - MARGIN*2, DISPLAY_WIDTH - config.columns[1], GxEPD_BLACK);
   display.setCursor(text_x, text_y);
   display.print(text);
 }
@@ -221,7 +234,7 @@ void drawCurrentNextClass(uint16_t current_hour, char classes[][128], char durat
   if (i == NUM_CLASSES) snprintf(nextClass, sizeof(nextClass), "-");
 
   char text[] = "Classe en curs:";
-  uint16_t x = SECOND_COLUMN + 2*MARGIN;
+  uint16_t x = config.columns[1] + 2*MARGIN;
   uint16_t y = MARGIN+CHAR_HEIGHT+TOP_MARGIN;
   display.setCursor(x, y);
   display.print("Classe en curs:");
@@ -250,8 +263,8 @@ void drawCurrentNextClass(uint16_t current_hour, char classes[][128], char durat
   display.print(nextClass);
 
   display.setFont(&FreeMonoBold9pt7b);
-  first_row = y;
-  display.drawFastHLine(SECOND_COLUMN, first_row, DISPLAY_WIDTH - SECOND_COLUMN, GxEPD_BLACK);
+  config.rows[0] = y;
+  if (config.showLines) display.drawFastHLine(config.columns[1], config.rows[0], DISPLAY_WIDTH - config.columns[1], GxEPD_BLACK);
 }
 
 void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCharsPerLine) {
@@ -314,8 +327,8 @@ void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCh
 }
 
 void drawAnnouncements(char announcement[]) {
-  uint16_t x = SECOND_COLUMN + MARGIN*2;
-  uint16_t y = first_row+MARGIN;
+  uint16_t x = config.columns[1] + MARGIN*2;
+  uint16_t y = config.rows[0]+MARGIN;
   char icon_w = 15;
   char icon_h = 15;
   display.drawBitmap(x, y,  avisos_bw, icon_w, icon_h, GxEPD_BLACK);
@@ -331,31 +344,31 @@ void drawAnnouncements(char announcement[]) {
     int16_t tbx, tby;
     uint16_t tbw, tbh;
     display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
-    tbx = (DISPLAY_WIDTH+SECOND_COLUMN-tbw)/2;
-    tby = ((second_row-first_row))/2 + y;
+    tbx = (DISPLAY_WIDTH+config.columns[1]-tbw)/2;
+    tby = ((config.rows[1]-config.rows[0]))/2 + y;
 
     display.setCursor(tbx, tby);
     display.print(text);
   }
   else {
-    printWithLineBreaks(announcement, x, y, (DISPLAY_WIDTH-(SECOND_COLUMN+MARGIN*4))/CHAR_WIDTH);
+    printWithLineBreaks(announcement, x, y, (DISPLAY_WIDTH-(config.columns[1]+MARGIN*4))/CHAR_WIDTH);
   }
 
   display.setFont(&FreeMonoBold9pt7b);
 }
 
 void drawSchedule() {
+  config = defaultLayout;
   display.setRotation(1);
   display.firstPage();
   display.setFullWindow();
   display.setFont(&FreeMonoBold9pt7b);
 
-
   // Get current time (to tell what class is next)
   // Connect to Wi-Fi
-  Serial.print("Connecting to ");
+  /*Serial.print("Connecting to ");
   Serial.println(ssid);
-  /*WiFi.begin(ssid, password);
+  WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -389,7 +402,6 @@ void drawSchedule() {
     display.fillScreen(GxEPD_WHITE);
     display.setTextColor(GxEPD_BLACK);
 
-    drawHours();
 
     char classes[NUM_CLASSES][128] = {
       "TANCAT", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",
@@ -399,12 +411,13 @@ void drawSchedule() {
       1, 1, 2, 0, 3, 0, 0,
       1, 0, 1, 0, 0, 0
     };
-    drawCurrentNextClass(12, classes, durations); // TODO: change number to "hour"
+    drawHours();
+    if (config.showCurrNext) drawCurrentNextClass(12, classes, durations); // TODO: change number to "hour"
     drawClasses(classes, durations);
 
-    drawAnnouncements("Aquest es un missatge molt llarg que s'haura de tallar en mes d'un!");
+    if(config.showAnnouncements) drawAnnouncements("Aquest es un missatge molt llarg que s'haura de tallar en mes d'un!");
 
-    drawQR();
+    if (config.showQR) drawQR();
   } while (display.nextPage());
 }
 

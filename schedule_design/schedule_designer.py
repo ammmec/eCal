@@ -7,6 +7,12 @@ CANVAS_WIDTH = 480
 CANVAS_HEIGHT = 800
 LEFT_COLUMN_WIDTH = 70
 RIGHT_COLUMN_START = 280
+TOP_ROW = 0
+BOTTOM_ROW = 0
+
+MARGIN = 5
+TOP_MARGIN = 4
+BOTTOM_MARGIN = 3
 
 # Colors
 BLACK = (0, 0, 0)
@@ -21,19 +27,19 @@ font = ImageFont.truetype("FreeMonoBold.ttf", 16)
 # === Functions ===
 def draw_class(position, label, duration):
     """Draws a class block at a given position with a label and duration."""
-    x_start = LEFT_COLUMN_WIDTH + 5
-    y_start = position * RECT_HEIGHT + 4
+    x_start = LEFT_COLUMN_WIDTH + MARGIN
+    y_start = position * RECT_HEIGHT + TOP_MARGIN
     width = RECT_WIDTH
     height = RECT_HEIGHT * duration
     color = RED if position == 2 else BLACK
 
     # Draw dotted pattern background
     for x in range(x_start, x_start + width):
-        for y in range(y_start + 5, y_start + height - 5):
+        for y in range(y_start + MARGIN, y_start + height - MARGIN):
             draw.point((x, y), fill=color if (x % 3 == 0 and y % 3 == 0) else WHITE)
 
     # Border around the class block
-    draw.rectangle((x_start, y_start + 5, x_start + width, y_start + height - 5), outline=color, width=1)
+    draw.rectangle((x_start, y_start + MARGIN, x_start + width, y_start + height - MARGIN), outline=color, width=1)
 
     # Center the text
     bbox = draw.textbbox((0, 0), label, font=font)
@@ -41,36 +47,37 @@ def draw_class(position, label, duration):
     text_height = bbox[3] - bbox[1]
 
     text_x = x_start + (width - text_width) // 2
-    text_y = y_start + (height - text_height) // 2 - 10
+    text_y = y_start + (height - text_height) // 2 - text_height
     draw.text((text_x, text_y), label, font=font, fill=BLACK, stroke_width=3, stroke_fill=WHITE)
 
 def draw_hour_labels():
     """Draws hour ranges (8-21h) on the left."""
-    x = 5
-    pos = 0
+    x = MARGIN
+    bbox = draw.textbbox((0, 0), "A", font=font)
+    text_height = bbox[3] - bbox[1]
+    y = TOP_MARGIN + (RECT_HEIGHT+text_height)//2 - text_height
+    pos = 1
     for hour in range(8, 21):
-        bbox = draw.textbbox((0, 0), "A", font=font)
-        text_height = bbox[3] - bbox[1]
-        y = 4 + (RECT_HEIGHT - text_height) // 2 - 10 + RECT_HEIGHT * pos
         draw.text((x, y), f"{hour}-{hour + 1}h", font=font, fill=BLACK)
-        if hour > 8:
-            draw.line((0, RECT_HEIGHT * pos + 4, RIGHT_COLUMN_START, RECT_HEIGHT * pos + 4), fill=BLACK)
+        if hour != 20:
+            draw.line((0, RECT_HEIGHT * pos + TOP_MARGIN, RIGHT_COLUMN_START, RECT_HEIGHT * pos + TOP_MARGIN), fill=BLACK)
+        y += RECT_HEIGHT
         pos += 1
 
 def draw_layout_lines():
     """Draws vertical grid lines."""
-    draw.line((RIGHT_COLUMN_START, 4, RIGHT_COLUMN_START, CANVAS_HEIGHT - 3), fill=BLACK)
-    draw.line((LEFT_COLUMN_WIDTH, 4, LEFT_COLUMN_WIDTH, CANVAS_HEIGHT - 3), fill=BLACK)
+    draw.line((RIGHT_COLUMN_START, TOP_MARGIN, RIGHT_COLUMN_START, CANVAS_HEIGHT - BOTTOM_MARGIN), fill=BLACK)
+    draw.line((LEFT_COLUMN_WIDTH, TOP_MARGIN, LEFT_COLUMN_WIDTH, CANVAS_HEIGHT - BOTTOM_MARGIN), fill=BLACK)
 
 def place_qr_code():
     """Places the QR code and a label below it."""
-    qr = Image.open("qr.png").convert("RGB")
+    qr = Image.open("icons\\qr.png").convert("RGB")
     qr_size = (125, 125)
     qr = qr.resize(qr_size, resample=Image.NEAREST)
     
     # Position QR at the bottom center between columns
     qr_x = (CANVAS_WIDTH + RIGHT_COLUMN_START - qr_size[0]) // 2
-    qr_y = CANVAS_HEIGHT - qr_size[1] - 10
+    qr_y = CANVAS_HEIGHT - qr_size[1] - BOTTOM_MARGIN - MARGIN
     image.paste(qr, (qr_x, qr_y))
     
     # Draw label above QR
@@ -79,54 +86,64 @@ def place_qr_code():
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
     text_x = (CANVAS_WIDTH + RIGHT_COLUMN_START - text_width) // 2
-    text_y = qr_y - text_height - 20
+    text_y = qr_y - text_height - MARGIN*3
     draw.text((text_x, text_y), label, font=font, fill=BLACK)
 
-    text_y += text_height - 31
+    text_y -= text_height+MARGIN
+    global BOTTOM_ROW
+    BOTTOM_ROW = text_y
     draw.line((RIGHT_COLUMN_START, text_y, CANVAS_WIDTH, text_y), fill=BLACK)
 
 def current_next_class():
     text = "Classe en curs:"
     bbox = draw.textbbox((0, 0), text, font=font)
     text_height = bbox[3] - bbox[1]
-    text_x = RIGHT_COLUMN_START + 10
-    text_y = 5
+    text_x = RIGHT_COLUMN_START + 2*MARGIN
+    text_y = MARGIN+TOP_MARGIN
     draw.text((text_x, text_y), text, font=font, fill=BLACK)
-    text_y += text_height + 12
+    text_y += text_height+MARGIN*2
 
     text = "SO2 20 T"
     draw.text((text_x, text_y), text, font=font, fill=BLACK)
-    text_y += text_height + 10
+    text_y += text_height+MARGIN*2
     draw.text((text_x, text_y), "9:00-10:00", font=font, fill=BLACK)
-    text_y += text_height + 20
+    text_y += text_height+MARGIN*4
 
     text = "Pròxima classe:"
     draw.text((text_x, text_y), text, font=font, fill=BLACK)
-    text_y += text_height + 12
+    text_y += text_height+MARGIN*2
 
     text = "CI 10 T"
     draw.text((text_x, text_y), text, font=font, fill=BLACK)
-    text_y += text_height + 10
+    text_y += text_height+MARGIN*2
     draw.text((text_x, text_y), "20:00-21:00", font=font, fill=BLACK)
-    text_y += text_height + 20
-
+    text_y += text_height+MARGIN*4
+    
+    global TOP_ROW 
+    TOP_ROW = text_y
     draw.line((RIGHT_COLUMN_START, text_y, CANVAS_WIDTH, text_y), fill=BLACK)
 
 def draw_messages(msg):
-    text_x = RIGHT_COLUMN_START + 15
-    text_y = 160
-    draw.text((text_x+25, text_y-5), "Avisos:", font=font, fill=BLACK)
-    img = Image.open("avisos.png").convert("RGB")
+    text_x = RIGHT_COLUMN_START + MARGIN*2
+    text_y = MARGIN+TOP_ROW
+    print(TOP_ROW)
+    icon_size = 15
+    bbox = draw.textbbox((0, 0), msg, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    draw.text((text_x+icon_size+MARGIN, text_y-text_height+icon_size), "Avisos:", font=font, fill=BLACK)
+    img = Image.open("icons\\avisos.png").convert("RGB")
     img = img.resize((15, 15), resample=Image.NEAREST)
     image.paste(img, (text_x, text_y))
 
-    text_y += 20
+    text_y += icon_size+MARGIN*2
     if (msg == None):
         msg = "No hi ha cap avís"
         bbox = draw.textbbox((0, 0), msg, font=font)
         text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
         text_x = (CANVAS_WIDTH + RIGHT_COLUMN_START - text_width) // 2
-        text_y = 740 // 2
+        text_y = (BOTTOM_ROW-TOP_ROW)//2 + text_y
         draw.text((text_x, text_y), line, font=font, fill=BLACK)
     else:
         words = msg.split()
@@ -167,8 +184,8 @@ draw_class(2, "SO2 20 T", 2)
 draw_class(12, "CI 10 T", 1)
 
 current_next_class()
-draw_messages("Aquesta aula quedarà automàticament tancada quan no hi hagi classe.")
 place_qr_code()
+draw_messages("Aquesta aula quedarà automàticament tancada quan no hi hagi classe.")
 
 # === Final Output ===
 image.save("simulated.png")
