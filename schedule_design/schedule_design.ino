@@ -38,10 +38,10 @@
 #define NUM_CLASSES 13
 #define START_HOUR 8
 
-// For getting the current time
-const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 3600;
-const int   daylightOffset_sec = 3600;
+uint16_t first_row; // To know where the height of the end of "current and next class"
+uint16_t second_row;
+
+char curr_class_pos;
 
 // alternately you can copy the constructor from GxEPD2_display_selection.h or GxEPD2_display_selection_added.h to here
 GxEPD2_3C < GxEPD2_750c_Z08, GxEPD2_750c_Z08::HEIGHT / 4 > display(GxEPD2_750c_Z08(/*CS=*/ CS, /*DC=*/ DC, /*RST=*/ RST, /*BUSY=*/ BUSY)); // GDEW075Z08 800x480, GD7965
@@ -61,11 +61,11 @@ void setup() {
 // position <- [0, 12], which "timeslot" it is in
 // name <- name of the class
 // duration <- how many hours the class lasts
-// color <- if the rectangle should be red or black. It alternates between classes
-void drawClass(char position, char name[], char duration, uint16_t color) {
+void drawClass(char position, char name[], char duration) {
   uint16_t x = FIRST_COLUMN + MARGIN;
   uint16_t y = position * RECT_HEIGHT + TOP_MARGIN;
   uint16_t h = RECT_HEIGHT * duration;
+  uint16_t color = (position == curr_class_pos) ? GxEPD_RED : GxEPD_BLACK;
 
   // Center text
   int16_t tbx, tby;
@@ -86,13 +86,13 @@ void drawClass(char position, char name[], char duration, uint16_t color) {
   }*/
 
   // Draw dotted background in bitmap
-  display.drawBitmap(x, y+MARGIN, class_bg_full, RECT_WIDTH, RECT_HEIGHT-2*MARGIN, color);
+  display.drawBitmap(x, y+MARGIN, class_bg, RECT_WIDTH, RECT_HEIGHT-2*MARGIN, color);
   // Extra bitmap to take the gap into account and the longer class
   for (int i = 1; i < duration; ++i) {
     display.drawFastHLine(x, y+i*RECT_HEIGHT, RECT_WIDTH, GxEPD_WHITE);
-    display.drawBitmap(x, y+i*RECT_HEIGHT-MARGIN, class_bg_full, RECT_WIDTH, RECT_HEIGHT, color);
+    display.drawBitmap(x, y+i*RECT_HEIGHT-MARGIN, class_bg, RECT_WIDTH, RECT_HEIGHT, color);
   }
-
+  
   // Border
   display.drawRect(x, y + MARGIN, RECT_WIDTH, h - MARGIN * 2, color);
 
@@ -141,7 +141,6 @@ void drawHours() {
 // Given an array of strings, where the string is the class and the position is the hour it is done in,
 // print each single class in the schedule
 void drawClasses(char classes[][128], char durations[]) {
-  bool colorRed = true;
 
   char i = 0;
   while (i < NUM_CLASSES) {
@@ -152,9 +151,8 @@ void drawClasses(char classes[][128], char durations[]) {
 
     char duration = durations[i];
 
-    drawClass(i, classes[i], duration, colorRed ? GxEPD_RED : GxEPD_BLACK);
+    drawClass(i, classes[i], duration);
     i += duration;
-    colorRed = !colorRed;
   }
 
   display.drawFastVLine(SECOND_COLUMN, TOP_MARGIN, DISPLAY_HEIGHT - BOTTOM_MARGIN, GxEPD_BLACK);
@@ -176,7 +174,8 @@ void drawQR() {
   uint16_t text_x = (DISPLAY_WIDTH + SECOND_COLUMN - tbw) / 2;
   uint16_t text_y = qr_y - tbh;
 
-  display.drawFastHLine(SECOND_COLUMN, text_y - CHAR_HEIGHT - MARGIN, DISPLAY_WIDTH - SECOND_COLUMN, GxEPD_BLACK);
+  second_row = text_y - CHAR_HEIGHT - MARGIN*2;
+  display.drawFastHLine(SECOND_COLUMN, text_y - CHAR_HEIGHT - MARGIN*2, DISPLAY_WIDTH - SECOND_COLUMN, GxEPD_BLACK);
   display.setCursor(text_x, text_y);
   display.print(text);
 
@@ -191,9 +190,11 @@ void drawCurrentNextClass(uint16_t current_hour, char classes[][128], char durat
   if (strcmp(classes[ind_curr_start], "") != 0) {
     snprintf(currClass, sizeof(currClass), classes[ind_curr_start]);
     while (durations[ind_curr_start]==0) --ind_curr_start;
+    curr_class_pos = ind_curr_start;
   }
   else {
     snprintf(currClass, sizeof(currClass), "-");
+    curr_class_pos = -1;
   }
 
   char i = ind_curr_start + durations[current_hour];
@@ -210,7 +211,7 @@ void drawCurrentNextClass(uint16_t current_hour, char classes[][128], char durat
 
   char text[] = "Classe en curs:";
   uint16_t x = SECOND_COLUMN + 2*MARGIN;
-  uint16_t y = MARGIN+CHAR_HEIGHT;
+  uint16_t y = MARGIN+CHAR_HEIGHT+TOP_MARGIN;
   display.setCursor(x, y);
   display.print("Classe en curs:");
 
@@ -238,7 +239,98 @@ void drawCurrentNextClass(uint16_t current_hour, char classes[][128], char durat
   display.print(nextClass);
 
   display.setFont(&FreeMonoBold9pt7b);
-  display.drawFastHLine(SECOND_COLUMN, y, DISPLAY_WIDTH - SECOND_COLUMN, GxEPD_BLACK);
+  first_row = y;
+  display.drawFastHLine(SECOND_COLUMN, first_row, DISPLAY_WIDTH - SECOND_COLUMN, GxEPD_BLACK);
+}
+
+void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCharsPerLine) {
+  int lineHeight = CHAR_HEIGHT + MARGIN;
+  int currentY = y;
+  const char* lineStart = text;
+  int lineLength = 0;
+
+  const char* wordStart;
+  int wordLength;
+
+  while (*text) {
+    // Find the next word
+    wordStart = text;
+    while (*text && *text != ' ' && *text != '\n') {
+      text++;
+    }
+    wordLength = text - wordStart;
+
+    // If adding this word exceeds max length, print current line and start new one
+    if (lineLength > 0 && (lineLength + wordLength + 1) > maxCharsPerLine) {
+      display.setCursor(x, currentY);
+      display.print(String(lineStart, lineLength));  // Print the current line
+      currentY += lineHeight;  // Move to the next line
+
+      // Reset for the new line
+      lineStart = wordStart;
+      lineLength = wordLength;
+    } else {
+      // Add word to the line
+      if (lineLength > 0) {
+        lineLength++; // Add space
+      }
+      lineLength += wordLength;
+    }
+
+    // Handle newline
+    if (*text == '\n') {
+      display.setCursor(x, currentY);
+      display.print(String(lineStart, lineLength));  // Print the current line
+      currentY += lineHeight;
+
+      // Reset for the next line
+      text++;
+      lineStart = text;
+      lineLength = 0;
+    }
+
+    // Skip spaces
+    if (*text == ' ') {
+      text++;
+    }
+  }
+
+  // Print any leftover text in the current line
+  if (lineLength > 0) {
+    display.setCursor(x, currentY);
+    display.print(String(lineStart, lineLength));
+  }
+}
+
+void drawAnnouncements(char announcement[]) {
+  uint16_t x = SECOND_COLUMN + MARGIN*2;
+  uint16_t y = first_row+MARGIN;
+  char icon_w = 15;
+  char icon_h = 15;
+  display.drawBitmap(x, y,  avisos_bw, icon_w, icon_h, GxEPD_BLACK);
+  display.drawBitmap(x, y, avisos_red, icon_w, icon_h, GxEPD_RED);
+  display.setCursor(x+icon_w+MARGIN, y+icon_h);
+  display.print("Avisos:");
+
+  y+= icon_h+CHAR_HEIGHT+MARGIN*2;
+  display.setFont(&FreeMono9pt7b);
+
+  if (strcmp(announcement, "") == 0) {
+    char text[] = "No hi ha cap avís";
+    int16_t tbx, tby;
+    uint16_t tbw, tbh;
+    display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
+    tbx = (DISPLAY_WIDTH+SECOND_COLUMN-tbw)/2;
+    tby = ((second_row-first_row))/2 + y;
+
+    display.setCursor(tbx, tby);
+    display.print(text);
+  }
+  else {
+    printWithLineBreaks(announcement, x, y, (DISPLAY_WIDTH-(SECOND_COLUMN+MARGIN*4))/CHAR_WIDTH);
+  }
+
+  display.setFont(&FreeMonoBold9pt7b);
 }
 
 void drawSchedule() {
@@ -261,7 +353,7 @@ void drawSchedule() {
   Serial.println("WiFi connected.");
   
   // Init and get the time
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  configTime(3600, 3600, "pool.ntp.org");
   uint16_t hour;
 
   struct tm timeinfo;
@@ -296,8 +388,10 @@ void drawSchedule() {
       0, 1, 2, 0, 3, 0, 0,
       1, 0, 1, 0, 0, 0
     };
-    drawClasses(classes, durations);
     drawCurrentNextClass(12, classes, durations); // TODO: change number to "hour"
+    drawClasses(classes, durations);
+
+    drawAnnouncements("Aquest es un missatge molt llarg que s'haura de tallar en mes d'un!");
 
     drawQR();
   } while (display.nextPage());
