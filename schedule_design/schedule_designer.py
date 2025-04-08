@@ -25,7 +25,7 @@ def draw_class(position, label, duration):
     y_start = position * RECT_HEIGHT + 4
     width = RECT_WIDTH
     height = RECT_HEIGHT * duration
-    color = RED if position % 2 == 0 else BLACK
+    color = RED if position == 2 else BLACK
 
     # Draw dotted pattern background
     for x in range(x_start, x_start + width):
@@ -167,7 +167,7 @@ draw_class(2, "SO2 20 T", 2)
 draw_class(12, "CI 10 T", 1)
 
 current_next_class()
-draw_messages("Crec que el que faré serà enviar els avisos ja separats, així és més fàcil fer el word wrap")
+draw_messages("Aquesta aula quedarà automàticament tancada quan no hi hagi classe.")
 place_qr_code()
 
 # === Final Output ===

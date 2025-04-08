@@ -7,6 +7,7 @@
 #include <time.h>
 #include "wifi_secure.h"
 
+// Pin definition
 #define PWR  D11  // 7
 #define BUSY D7   // 18
 #define RST  D6   // 1
@@ -30,16 +31,17 @@
 #define DISPLAY_HEIGHT 800
 #define DISPLAY_WIDTH 480
 
-// x where the 1st column (after the hours) is. Taking into account left and right margin
-#define FIRST_COLUMN 64+MARGIN*2
-#define SECOND_COLUMN FIRST_COLUMN+RECT_WIDTH+MARGIN*2
+// x where the columns are. Taking into account left and right margin
+#define FIRST_COLUMN CHAR_WIDTH*6+MARGIN*2 // Between hours and classes
+#define SECOND_COLUMN FIRST_COLUMN+RECT_WIDTH+MARGIN*2 // Between classes and extras
 
-// Number of classes displayed
-#define NUM_CLASSES 13
-#define START_HOUR 8
+// Class related information
+#define NUM_CLASSES 13 // Number of classes displayed
+#define START_HOUR 8 // First hour to be displayed
 
+// Horizontal lines positioning
 uint16_t first_row; // To know where the height of the end of "current and next class"
-uint16_t second_row;
+uint16_t second_row; // Between announcements and QR code
 
 char curr_class_pos;
 
@@ -55,6 +57,17 @@ void setup() {
   Serial.println("Going to sleep");
   display.powerOff();
   digitalWrite(PWR, LOW);
+}
+
+void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], uint16_t color) {
+  display.setTextColor(color);
+  for (int i = -w; i <= w; ++i) {
+    for (int j = -h; j <= h; ++j) {
+      if (i == 0 && j == 0) continue;
+      display.setCursor(x + i, y + j);
+      display.print(text);
+    }
+  }
 }
 
 // Draws a class of the schedule. The height of the rectangle increases with the duration
@@ -97,14 +110,7 @@ void drawClass(char position, char name[], char duration) {
   display.drawRect(x, y + MARGIN, RECT_WIDTH, h - MARGIN * 2, color);
 
   // White outline
-  display.setTextColor(GxEPD_WHITE);
-  for (int i = -3; i <= 3; ++i) {
-    for (int j = -2; j <= 2; ++j) {
-      if (i == 0 && j == 0) continue;
-      display.setCursor(tx + i, ty + j);
-      display.print(name);
-    }
-  }
+  drawOutline(tx, ty, 3, 2, name, GxEPD_WHITE);
 
   // Actual text
   display.setTextColor(GxEPD_BLACK);
@@ -160,11 +166,11 @@ void drawClasses(char classes[][128], char durations[]) {
 
 // Draws a QR code of the website where the full schedule can be found
 void drawQR() {
-  const uint16_t qr_width = 125;
-  const uint16_t qr_height = 125;
+  const uint16_t qr_size = 125;
 
-  uint16_t qr_x = (DISPLAY_WIDTH + SECOND_COLUMN - qr_width) / 2;
-  uint16_t qr_y = DISPLAY_HEIGHT - qr_height - BOTTOM_MARGIN;
+  uint16_t qr_x = (DISPLAY_WIDTH + SECOND_COLUMN - qr_size) / 2;
+  uint16_t qr_y = DISPLAY_HEIGHT - qr_size - BOTTOM_MARGIN;
+  display.drawBitmap(qr_x, qr_y, qr, qr_size, qr_size, GxEPD_BLACK);
 
   const char text[] = "Horari sencer:";
   int16_t tbx, tby;
@@ -178,8 +184,6 @@ void drawQR() {
   display.drawFastHLine(SECOND_COLUMN, text_y - CHAR_HEIGHT - MARGIN*2, DISPLAY_WIDTH - SECOND_COLUMN, GxEPD_BLACK);
   display.setCursor(text_x, text_y);
   display.print(text);
-
-  display.drawBitmap(qr_x, qr_y, qr, qr_width, qr_height, GxEPD_BLACK);
 }
 
 void drawCurrentNextClass(uint16_t current_hour, char classes[][128], char durations[]) {
@@ -199,7 +203,7 @@ void drawCurrentNextClass(uint16_t current_hour, char classes[][128], char durat
 
   char i = ind_curr_start + durations[current_hour];
   while (i < NUM_CLASSES) {
-    if (strcmp(classes[i], currClass) != 0 && durations[i] != 0) {
+    if (durations[i] != 0 && strcmp(classes[i], currClass) != 0) {
       snprintf(nextClass, sizeof(nextClass), classes[i]);
       ind_next_start = i;
       i = NUM_CLASSES;
