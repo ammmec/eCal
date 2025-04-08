@@ -38,6 +38,7 @@
 // Class related information
 #define NUM_CLASSES 13 // Number of classes displayed
 #define START_HOUR 8 // First hour to be displayed
+#define CLOSED  "TANCAT"
 
 // Horizontal lines positioning
 uint16_t first_row; // To know where the height of the end of "current and next class"
@@ -98,16 +99,22 @@ void drawClass(char position, char name[], char duration) {
     }
   }*/
 
-  // Draw dotted background in bitmap
-  display.drawBitmap(x, y+MARGIN, class_bg, RECT_WIDTH, RECT_HEIGHT-2*MARGIN, color);
-  // Extra bitmap to take the gap into account and the longer class
-  for (int i = 1; i < duration; ++i) {
-    display.drawFastHLine(x, y+i*RECT_HEIGHT, RECT_WIDTH, GxEPD_WHITE);
-    display.drawBitmap(x, y+i*RECT_HEIGHT-MARGIN, class_bg, RECT_WIDTH, RECT_HEIGHT, color);
-  }
+  if(strcmp(name, CLOSED) != 0) { // If the class is closed no need to draw the bitmap
+    // Draw dotted background in bitmap
+    display.drawBitmap(x, y+MARGIN, class_bg, RECT_WIDTH, RECT_HEIGHT-2*MARGIN, color);
+    // Extra bitmap to take the gap into account and the longer class
+    for (int i = 1; i < duration; ++i) {
+      display.drawFastHLine(x, y+i*RECT_HEIGHT, RECT_WIDTH, GxEPD_WHITE);
+      display.drawBitmap(x, y+i*RECT_HEIGHT-MARGIN, class_bg, RECT_WIDTH, RECT_HEIGHT, color);
+    }
   
-  // Border
-  display.drawRect(x, y + MARGIN, RECT_WIDTH, h - MARGIN * 2, color);
+    // Border
+    display.drawRect(x, y + MARGIN, RECT_WIDTH, h - MARGIN * 2, color);
+  }
+  else {
+    display.writeLine (x-MARGIN, y, x+RECT_WIDTH+MARGIN, y+RECT_HEIGHT, GxEPD_BLACK);
+    display.writeLine (x-MARGIN, y+RECT_HEIGHT, x+RECT_WIDTH+MARGIN, y, GxEPD_BLACK);
+  }
 
   // White outline
   drawOutline(tx, ty, 3, 2, name, GxEPD_WHITE);
@@ -385,11 +392,11 @@ void drawSchedule() {
     drawHours();
 
     char classes[NUM_CLASSES][128] = {
-      "", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",
+      "TANCAT", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",
       "GEI FM 20T", "", "GEI PRO1 20T", "", "", ""
     };
     char durations[NUM_CLASSES] = {
-      0, 1, 2, 0, 3, 0, 0,
+      1, 1, 2, 0, 3, 0, 0,
       1, 0, 1, 0, 0, 0
     };
     drawCurrentNextClass(12, classes, durations); // TODO: change number to "hour"
