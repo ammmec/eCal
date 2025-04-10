@@ -1,18 +1,21 @@
 from PIL import Image, ImageDraw, ImageFont
 
 # === Constants ===
-RECT_HEIGHT = 61
-RECT_WIDTH = 200
 CANVAS_WIDTH = 480
 CANVAS_HEIGHT = 800
-LEFT_COLUMN_WIDTH = 70
-RIGHT_COLUMN_START = 280
-TOP_ROW = 0
-BOTTOM_ROW = 0
 
 MARGIN = 5
-TOP_MARGIN = 4
-BOTTOM_MARGIN = 3
+TOP_MARGIN = 0
+BOTTOM_MARGIN = 0
+
+RECT_WIDTH = CANVAS_WIDTH - (11*6+MARGIN*2 + MARGIN*2)
+RECT_HEIGHT = 61
+CLASSES_LENGTH = 0
+
+LEFT_COLUMN_WIDTH = 11*6+MARGIN*2
+RIGHT_COLUMN_START = LEFT_COLUMN_WIDTH+RECT_WIDTH+MARGIN*2
+TOP_ROW = 0
+BOTTOM_ROW = 0
 
 # Colors
 BLACK = (0, 0, 0)
@@ -50,34 +53,36 @@ def draw_class(position, label, duration):
     text_y = y_start + (height - text_height) // 2 - text_height
     draw.text((text_x, text_y), label, font=font, fill=BLACK, stroke_width=3, stroke_fill=WHITE)
 
-def draw_hour_labels():
+def draw_hour_labels(start, end):
     """Draws hour ranges (8-21h) on the left."""
+    global CLASSES_LENGTH
     x = MARGIN
     bbox = draw.textbbox((0, 0), "A", font=font)
     text_height = bbox[3] - bbox[1]
-    y = TOP_MARGIN + (RECT_HEIGHT+text_height)//2 - text_height
+    y = TOP_MARGIN + (RECT_HEIGHT-text_height)//2 - text_height
     pos = 1
-    for hour in range(8, 21):
+    for hour in range(start, end):
         draw.text((x, y), f"{hour}-{hour + 1}h", font=font, fill=BLACK)
+        y += RECT_HEIGHT
         if hour != 20:
             draw.line((0, RECT_HEIGHT * pos + TOP_MARGIN, RIGHT_COLUMN_START, RECT_HEIGHT * pos + TOP_MARGIN), fill=BLACK)
-        y += RECT_HEIGHT
         pos += 1
+    CLASSES_LENGTH = RECT_HEIGHT * (pos-1) + TOP_MARGIN
 
 def draw_layout_lines():
     """Draws vertical grid lines."""
-    draw.line((RIGHT_COLUMN_START, TOP_MARGIN, RIGHT_COLUMN_START, CANVAS_HEIGHT - BOTTOM_MARGIN), fill=BLACK)
-    draw.line((LEFT_COLUMN_WIDTH, TOP_MARGIN, LEFT_COLUMN_WIDTH, CANVAS_HEIGHT - BOTTOM_MARGIN), fill=BLACK)
+    draw.line((RIGHT_COLUMN_START, TOP_MARGIN, RIGHT_COLUMN_START, CLASSES_LENGTH), fill=BLACK)
+    draw.line((LEFT_COLUMN_WIDTH, TOP_MARGIN, LEFT_COLUMN_WIDTH, CLASSES_LENGTH), fill=BLACK)
 
-def place_qr_code():
+def place_qr_code(x, y):
     """Places the QR code and a label below it."""
     qr = Image.open("icons\\qr.png").convert("RGB")
     qr_size = (125, 125)
     qr = qr.resize(qr_size, resample=Image.NEAREST)
     
     # Position QR at the bottom center between columns
-    qr_x = (CANVAS_WIDTH + RIGHT_COLUMN_START - qr_size[0]) // 2
-    qr_y = CANVAS_HEIGHT - qr_size[1] - BOTTOM_MARGIN - MARGIN
+    qr_x = (x - qr_size[0]) // 2
+    qr_y = y - qr_size[1] - BOTTOM_MARGIN - MARGIN
     image.paste(qr, (qr_x, qr_y))
     
     # Draw label above QR
@@ -85,14 +90,14 @@ def place_qr_code():
     bbox = draw.textbbox((0, 0), label, font=font)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
-    text_x = (CANVAS_WIDTH + RIGHT_COLUMN_START - text_width) // 2
+    text_x = (x - text_width) // 2
     text_y = qr_y - text_height - MARGIN*3
     draw.text((text_x, text_y), label, font=font, fill=BLACK)
 
     text_y -= text_height+MARGIN
     global BOTTOM_ROW
     BOTTOM_ROW = text_y
-    draw.line((RIGHT_COLUMN_START, text_y, CANVAS_WIDTH, text_y), fill=BLACK)
+    draw.line((0, text_y, CANVAS_WIDTH, text_y), fill=BLACK)
 
 def current_next_class():
     text = "Classe en curs:"
@@ -123,10 +128,9 @@ def current_next_class():
     TOP_ROW = text_y
     draw.line((RIGHT_COLUMN_START, text_y, CANVAS_WIDTH, text_y), fill=BLACK)
 
-def draw_messages(msg):
-    text_x = RIGHT_COLUMN_START + MARGIN*2
-    text_y = MARGIN+TOP_ROW
-    print(TOP_ROW)
+def draw_announcements(msg, x, y):
+    text_x = x
+    text_y = y
     icon_size = 15
     bbox = draw.textbbox((0, 0), msg, font=font)
     text_width = bbox[2] - bbox[0]
@@ -149,7 +153,7 @@ def draw_messages(msg):
         words = msg.split()
         lines = []  # This will hold the resulting lines
         current_line = ""  # This will build each line
-        max_width = CANVAS_WIDTH-(RIGHT_COLUMN_START+20)
+        max_width = CANVAS_WIDTH-(x+MARGIN*6)
 
         for word in words:
             # Check if adding the word to the current line exceeds the max width
@@ -174,18 +178,18 @@ def draw_messages(msg):
             draw.text((text_x, text_y+row*text_height), line, font=font, fill=BLACK)
 
 # === Drawing ===
-draw_hour_labels()
+draw_hour_labels(8, 14)
 draw_layout_lines()
 
 # Draw some example class blocks
 draw_class(0, "FM 10 T", 1)
 draw_class(1, "DSBM 10 L", 1)
 draw_class(2, "SO2 20 T", 2)
-draw_class(12, "CI 10 T", 1)
+# draw_class(12, "CI 10 T", 1)
 
 current_next_class()
-place_qr_code()
-draw_messages("Aquesta aula quedarà automàticament tancada quan no hi hagi classe.")
+place_qr_code(CANVAS_WIDTH, CANVAS_HEIGHT)
+draw_announcements("Aquesta aula quedarà automàticament tancada quan no hi hagi classe.", MARGIN, CLASSES_LENGTH+2*MARGIN)
 
 # === Final Output ===
 image.save("simulated.png")

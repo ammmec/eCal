@@ -1,8 +1,8 @@
 from PIL import Image, ImageDraw, ImageFont
 
 # === Constants ===
-CANVAS_WIDTH = 200
-CANVAS_HEIGHT = 61
+CANVAS_WIDTH = 24
+CANVAS_HEIGHT = 60
 
 # Colors
 BLACK = (0, 0, 0)
@@ -16,8 +16,7 @@ draw = ImageDraw.Draw(image)
 # Draw dotted pattern background
 for i in range(0, CANVAS_WIDTH):
     for j in range(0, CANVAS_HEIGHT):
-        if ((i%2 == 0 and j%2 == 0) or
-            (i%2 != 0 and j%2 != 0)):
+        if (i%3 == 0 and j%3 == 0):
             draw.point((i, j), fill=BLACK)
 
 # === Final Output ===

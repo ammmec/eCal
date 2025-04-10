@@ -18,6 +18,10 @@
 #define DISPLAY_HEIGHT 800
 #define DISPLAY_WIDTH 480
 
+#define CLASS_BP_WIDTH  24
+#define CLASS_BP_HEIGHT 60
+#define QR_SIZE 125
+
 enum Layout {
   DEFAULT_LAYOUT,
   DEFAULT_NO_LINES,
