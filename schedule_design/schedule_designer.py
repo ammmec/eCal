@@ -1,15 +1,15 @@
 from PIL import Image, ImageDraw, ImageFont
 
 # === Constants ===
-CANVAS_WIDTH = 480
-CANVAS_HEIGHT = 800
+CANVAS_WIDTH = 800
+CANVAS_HEIGHT = 480
 
 MARGIN = 5
 TOP_MARGIN = 0
 BOTTOM_MARGIN = 0
 
-RECT_WIDTH = CANVAS_WIDTH - (11*6+MARGIN*2 + MARGIN*2)
-RECT_HEIGHT = 61
+RECT_WIDTH = (int)(CANVAS_WIDTH/2 - (11*6+MARGIN*2 + MARGIN*2))
+RECT_HEIGHT = 60
 CLASSES_LENGTH = 0
 
 LEFT_COLUMN_WIDTH = 11*6+MARGIN*2
@@ -97,7 +97,7 @@ def place_qr_code(x, y):
     text_y -= text_height+MARGIN
     global BOTTOM_ROW
     BOTTOM_ROW = text_y
-    draw.line((0, text_y, CANVAS_WIDTH, text_y), fill=BLACK)
+    #draw.line((0, text_y, CANVAS_WIDTH, text_y), fill=BLACK)
 
 def current_next_class():
     text = "Classe en curs:"
@@ -178,7 +178,7 @@ def draw_announcements(msg, x, y):
             draw.text((text_x, text_y+row*text_height), line, font=font, fill=BLACK)
 
 # === Drawing ===
-draw_hour_labels(8, 14)
+draw_hour_labels(8, 16)
 draw_layout_lines()
 
 # Draw some example class blocks
@@ -187,9 +187,9 @@ draw_class(1, "DSBM 10 L", 1)
 draw_class(2, "SO2 20 T", 2)
 # draw_class(12, "CI 10 T", 1)
 
-current_next_class()
-place_qr_code(CANVAS_WIDTH, CANVAS_HEIGHT)
-draw_announcements("Aquesta aula quedarà automàticament tancada quan no hi hagi classe.", MARGIN, CLASSES_LENGTH+2*MARGIN)
+# current_next_class()
+place_qr_code(RIGHT_COLUMN_START*3, CANVAS_HEIGHT)
+draw_announcements("Aquesta aula quedarà automàticament tancada quan no hi hagi classe.", RIGHT_COLUMN_START+2*MARGIN, 2*MARGIN)
 
 # === Final Output ===
 image.save("simulated.png")

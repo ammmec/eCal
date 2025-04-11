@@ -47,8 +47,30 @@ LayoutConfig wideLayout = {
 
   .screenMargins = {0, 0, 0, 0},
  
-  .columns = {CHAR_WIDTH*6+MARGIN*2, DISPLAY_WIDTH, 0},
+  .columns = {CHAR_WIDTH*6+MARGIN*2, display_width, 0},
 };
+
+LayoutConfig horizontalLayout = {
+  .showLines = true,
+  .showQR = true,
+  .showAnnouncements = true,
+  .showCurrNext = false,
+
+  .numClassesDisplayed = 8,
+
+  // Rectangle (1h class) height and width
+  .classHeight = CLASS_BP_HEIGHT, // Has to be divisible by 60
+
+  // margins of the display. {left, right, top, bottom}
+  .screenMargins = {0, 0, 0, 0},
+
+  // columns[0] -> hours line/classess start
+  // columns[1] -> class end line
+  // columns[2] -> announcements line line
+  .columns = {CHAR_WIDTH*6+MARGIN*2, 0, 0},
+  .rows = {0, 0}
+};
+
 
 LayoutConfig config;
 
@@ -60,11 +82,11 @@ GxEPD2_3C < GxEPD2_750c_Z08, GxEPD2_750c_Z08::HEIGHT / 4 > display(GxEPD2_750c_Z
 
 void setup() {
   // If default is chosen
-  config.columns[1] = config.columns[2] = config.columns[0]+CLASS_BP_WIDTH*7+MARGIN*2;
+  config.columns[1] = config.columns[2] = config.columns[0]+config.classWidth+MARGIN*2;
   config.rows[0] = config.screenMargins[2]+(CHAR_HEIGHT+MARGIN*2)*7;
-  config.rows[1] = DISPLAY_HEIGHT - (QR_SIZE + config.screenMargins[3] + (CHAR_HEIGHT + MARGIN)*2);
+  config.rows[1] = display_height - (QR_SIZE + config.screenMargins[3] + (CHAR_HEIGHT + MARGIN)*2);
 
-  wideLayout.classWidth =  (DISPLAY_WIDTH - wideLayout.columns[0]) - (DISPLAY_WIDTH - wideLayout.columns[0])%CLASS_BP_WIDTH;
+  wideLayout.classWidth =  (display_width - wideLayout.columns[0]) - (display_width - wideLayout.columns[0])%CLASS_BP_WIDTH;
   wideLayout.rows[0] = wideLayout.classHeight*wideLayout.numClassesDisplayed + MARGIN*3;
   
   pinMode(PWR, OUTPUT);
@@ -200,13 +222,13 @@ void drawClasses(char classes[][128], int16_t durations[]) {
     pos += duration;
   }
 
-  if (config.showLines && config.screenMargins[2] != 0) display.drawFastVLine(config.columns[1], config.screenMargins[2], DISPLAY_HEIGHT - config.screenMargins[3], GxEPD_BLACK);
+  if (config.showLines) display.drawFastVLine(config.columns[1], config.screenMargins[2], display_height - config.screenMargins[3], GxEPD_BLACK);
 }
 
 // Draws a QR code of the website where the full schedule can be found
 void drawQR() {
-  uint16_t qr_x = (DISPLAY_WIDTH + config.columns[2] - QR_SIZE) / 2;
-  uint16_t qr_y = DISPLAY_HEIGHT - QR_SIZE - config.screenMargins[3];
+  uint16_t qr_x = (display_width + config.columns[2] - QR_SIZE) / 2;
+  uint16_t qr_y = display_height - QR_SIZE - config.screenMargins[3];
   display.drawBitmap(qr_x, qr_y, qr, QR_SIZE, QR_SIZE, GxEPD_BLACK);
 
   const char text[] = "Horari sencer:";
@@ -214,10 +236,10 @@ void drawQR() {
   uint16_t tbw, tbh;
   display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
 
-  uint16_t text_x = (DISPLAY_WIDTH + config.columns[2] - tbw) / 2;
+  uint16_t text_x = (display_width + config.columns[2] - tbw) / 2;
   uint16_t text_y = qr_y - CHAR_HEIGHT;
 
-  if (config.showLines && config.screenMargins[2]!=0) display.drawFastHLine(config.columns[2], text_y - CHAR_HEIGHT - MARGIN*2, DISPLAY_WIDTH - config.columns[2], GxEPD_BLACK);
+  if (config.showLines && config.screenMargins[2]!=0) display.drawFastHLine(config.columns[2], text_y - CHAR_HEIGHT - MARGIN*2, display_width - config.columns[2], GxEPD_BLACK);
   display.setCursor(text_x, text_y);
   display.print(text);
 }
@@ -253,7 +275,7 @@ void drawCurrentNextClass(char classes[][128], int16_t durations[]) {
     y += (CHAR_HEIGHT+MARGIN*2)*3;
   }
 
-  char i = curr_class_pos + durations[curr_class_pos];
+  char i = curr_class_pos >= 0 ? curr_class_pos + durations[curr_class_pos] : config.numClassesDisplayed;
   while (i < config.numClassesDisplayed) {
     if (durations[i] != 0 && strcmp(classes[i], currClass) != 0) {
       snprintf(nextClass, sizeof(nextClass), classes[i]);
@@ -277,7 +299,7 @@ void drawCurrentNextClass(char classes[][128], int16_t durations[]) {
   }
 
   display.setFont(&FreeMonoBold9pt7b);
-  if (config.showLines) display.drawFastHLine(config.columns[2], config.rows[0], DISPLAY_WIDTH - config.columns[2], GxEPD_BLACK);
+  if (config.showLines) display.drawFastHLine(config.columns[2], config.rows[0], display_width - config.columns[2], GxEPD_BLACK);
 }
 
 void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCharsPerLine) {
@@ -357,22 +379,30 @@ void drawAnnouncements(char announcement[]) {
     int16_t tbx, tby;
     uint16_t tbw, tbh;
     display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
-    tbx = (DISPLAY_WIDTH+config.columns[2]-tbw)/2;
+    tbx = (display_width+config.columns[2]-tbw)/2;
     tby = ((config.rows[1]-config.rows[0]))/2 + y;
 
     display.setCursor(tbx, tby);
     display.print(text);
   }
   else {
-    printWithLineBreaks(announcement, x, y, (DISPLAY_WIDTH-(config.columns[2]+MARGIN*4))/CHAR_WIDTH);
+    printWithLineBreaks(announcement, x, y, (display_width-(config.columns[2]+MARGIN*4))/CHAR_WIDTH);
   }
 
   display.setFont(&FreeMonoBold9pt7b);
 }
 
 void drawSchedule() {
-  //config = wideLayout;
   display.setRotation(1);
+  display_height = display.height();
+  display_width = display.width();
+
+  uint16_t usableWidth = (display_width / 2) - horizontalLayout.columns[0];
+  horizontalLayout.classWidth = usableWidth - (usableWidth % CLASS_BP_WIDTH);
+  horizontalLayout.columns[1] = horizontalLayout.columns[2] = horizontalLayout.columns[0]+horizontalLayout.classWidth+MARGIN*2;
+  horizontalLayout.rows[1] = display_height - (QR_SIZE + (CHAR_HEIGHT + MARGIN)*2);
+  config = wideLayout;
+
   display.firstPage();
   display.setFullWindow();
   display.setFont(&FreeMonoBold9pt7b);
@@ -409,11 +439,11 @@ void drawSchedule() {
   WiFi.mode(WIFI_OFF);
   */
   char classes[NUM_CLASSES][128] = {
-    "", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",
+    "SRGGE-MIRI 10 L", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",
     "GEI FM 20T", "", "GEI PRO1 20T", "TANCAT", "TANCAT", ""
   };
   int16_t durations[NUM_CLASSES] = {
-    0, 1, 2, -1, 3, -1, -2,
+    1, 1, 2, -1, 3, -1, -2,
     1, 0, 1, 2, -1, 0
   };
 

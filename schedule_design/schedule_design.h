@@ -15,8 +15,8 @@
 #define CS   SS   // 5
 
 // Display size
-#define DISPLAY_HEIGHT 800
-#define DISPLAY_WIDTH 480
+uint16_t display_height = 800;
+uint16_t display_width = 480;
 
 #define CLASS_BP_WIDTH  24
 #define CLASS_BP_HEIGHT 60
@@ -24,7 +24,8 @@
 
 enum Layout {
   DEFAULT_LAYOUT,
-  DEFAULT_NO_LINES,
-  HALF_DAY
+  WIDE_LAYOUT,
+  HORIZONTAL_LAYOUT,
+  PICTURE
   // add more as needed
 };
