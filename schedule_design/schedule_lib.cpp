@@ -10,10 +10,8 @@ uint16_t current_hour = 8;
 char curr_class_pos;
 
 void setupLayout(Layout l, bool lines) {
-  Serial.print("Setting layout: ");
   switch (l) {
     case DEFAULT_LAYOUT:
-      Serial.println("default");
       display.setRotation(1);
       display_height = display.height();
       display_width = display.width();
@@ -26,19 +24,21 @@ void setupLayout(Layout l, bool lines) {
         .numClassesDisplayed = 13,
         
         .classHeight = CLASS_BP_HEIGHT,
-        .classWidth = CLASS_BP_WIDTH*7,
+        .classWidth = (uint16_t)(CLASS_BP_WIDTH*(7.5)),
 
         .screenMargins = {0, 0, 4, 3},
 
         .columns = {CHAR_WIDTH*6+MARGIN*2, 0, 0}
       };
+      config.classHeight = (display_height/config.numClassesDisplayed);
+      config.screenMargins[3] = (display_height-(config.classHeight*config.numClassesDisplayed))/2;
+      config.screenMargins[2] = config.screenMargins[3] + ((display_height-config.classHeight*config.numClassesDisplayed) % 2 != 0);
       config.columns[1] = config.columns[2] = config.columns[0]+config.classWidth+MARGIN*2;
-      config.rows[0] = config.screenMargins[2]+(CHAR_HEIGHT+MARGIN*2)*7;
-      config.rows[1] = display_height - (QR_SIZE + config.screenMargins[3] + (CHAR_HEIGHT + MARGIN)*2);
+      config.rows[0] = (CHAR_HEIGHT+MARGIN*2)*7;
+      config.rows[1] = display_height - (QR_SIZE + (CHAR_HEIGHT + MARGIN)*2);
       break;
 
     case WIDE_LAYOUT:
-      Serial.println("wide");
       display.setRotation(1);
       display_height = display.height();
       display_width = display.width();
@@ -48,19 +48,18 @@ void setupLayout(Layout l, bool lines) {
         .showAnnouncements = true,
         .showCurrNext = false,
 
-        .numClassesDisplayed = 8,
-        .classHeight = CLASS_BP_HEIGHT,
+        .numClassesDisplayed = 6,
 
         .screenMargins = {0, 0, 0, 0},
       
         .columns = {CHAR_WIDTH*6+MARGIN*2, display_width, 0}
       };
       config.classWidth =  (display_width - config.columns[0]) - (display_width - config.columns[0])%CLASS_BP_WIDTH;
+      config.classHeight = ((display_height/2)/config.numClassesDisplayed);
       config.rows[0] = config.classHeight*config.numClassesDisplayed + MARGIN*3;
       break;
 
     case HORIZONTAL_LAYOUT:
-      Serial.println("horizontal");
       display.setRotation(0);
       display_height = display.height();
       display_width = display.width();
@@ -71,10 +70,7 @@ void setupLayout(Layout l, bool lines) {
         .showAnnouncements = true,
         .showCurrNext = false,
 
-        .numClassesDisplayed = 8,
-
-        // Rectangle (1h class) height and width
-        .classHeight = CLASS_BP_HEIGHT,
+        .numClassesDisplayed = 7,
 
         // margins of the display. {left, right, top, bottom}
         .screenMargins = {0, 0, 0, 0},
@@ -85,6 +81,9 @@ void setupLayout(Layout l, bool lines) {
         .columns = {CHAR_WIDTH*6+MARGIN*2, 0, 0},
         .rows = {0, 0}
       };
+      config.classHeight = (display_height/config.numClassesDisplayed);
+      config.screenMargins[3] = (display_height-(config.classHeight*config.numClassesDisplayed))/2;
+      config.screenMargins[2] = config.screenMargins[3] + ((display_height-config.classHeight*config.numClassesDisplayed) % 2 != 0);
       uint16_t usableWidth = (display_width / 2) - config.columns[0];
       config.classWidth = usableWidth - (usableWidth % CLASS_BP_WIDTH);
       config.columns[1] = config.columns[2] = config.columns[0]+config.classWidth+MARGIN*2;
@@ -114,8 +113,8 @@ void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], ui
 // duration <- how many hours the class lasts
 void drawClass(char position, char name[], char duration, uint16_t color) {
   uint16_t x = (config.columns[1] - config.columns[0] - config.classWidth)/2 + config.columns[0];
-  uint16_t y = position * HOUR_HEIGHT + config.screenMargins[2]+1;
-  uint16_t h = config.classHeight * duration;
+  uint16_t h = (config.classHeight * duration - 2*MARGIN) - (config.classHeight * duration - 2*MARGIN)%CLASS_BP_HEIGHT;
+  uint16_t y = config.classHeight*position + (config.classHeight*duration)/2 + config.screenMargins[2] - h/2;
 
   // Center text
   int16_t tbx, tby;
@@ -128,9 +127,7 @@ void drawClass(char position, char name[], char duration, uint16_t color) {
   // Draw dotted background manually
   /*for (int i = x; i < x + config.classWidth; ++i) {
     for (int j = y + MARGIN; j < y + h - MARGIN; ++j) {
-      if (( i % 3 == 0 && j % 3 == 0)
-            || ((i - 1) % 3 == 0 && (j - 1) % 3 == 0)
-            || ((i + 1) % 3 == 0 && (j + 1) % 3 == 0)) display.drawPixel(i, j, color);
+      if (i % 3 == 0 && j % 3 == 0) display.drawPixel(i, j, color);
       else if (duration > 1) display.drawPixel(i, j, GxEPD_WHITE);
     }
   }*/
@@ -138,19 +135,17 @@ void drawClass(char position, char name[], char duration, uint16_t color) {
   if(strcmp(name, CLOSED) != 0) { // If the class is closed no need to draw the bitmap
     // Draw dotted background in bitmap
     for (int i = 0; i < config.classWidth; i += CLASS_BP_WIDTH) { // Repeat for as many times as needed for intended width
-      display.drawBitmap(x+i, y+MARGIN, class_bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT-2*MARGIN, color);
-      // Extra bitmap to take the gap into account and the longer class
-      for (int j = 1; j < duration; ++j) {
-        display.drawBitmap(x+i, y+j*CLASS_BP_HEIGHT+1-MARGIN, class_bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT, color, GxEPD_WHITE);
+      for (int j = 0; j < h; j += CLASS_BP_HEIGHT) {
+        display.drawBitmap(x+i, y+j, class_bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT, color, GxEPD_WHITE);
       }
     }
     
     // Border
-    display.drawRect(x-1, y + MARGIN, config.classWidth+1, h - MARGIN*2, color);
+    display.drawRect(x, y, config.classWidth, h, color);
   }
   else {
-    display.writeLine (config.columns[0], y, config.columns[1], y+h, color);
-    display.writeLine (config.columns[0], y+h, config.columns[1], y, color);
+    display.writeLine (config.columns[0], config.classHeight*position, config.columns[1], config.classHeight*(position+1), color);
+    display.writeLine (config.columns[0], config.classHeight*(position+1), config.columns[1], config.classHeight*position, color);
   }
 
   // White outline
@@ -167,8 +162,8 @@ void drawHours() {
   // Giving some margin on the left
   uint16_t x = MARGIN;
   // y position ->  config.screenMargins[2] for the border
-  //                (HOUR_HEIGHT + CHAR_HEIGHT)/2 to center inside its spot
-  uint16_t y = config.screenMargins[2] + (HOUR_HEIGHT + CHAR_HEIGHT) / 2;
+  //                (config.classHeight + CHAR_HEIGHT)/2 to center inside its spot
+  uint16_t y = config.screenMargins[2] + (config.classHeight + CHAR_HEIGHT) / 2;
   char pos = 1;
   char lastShown = current_hour+config.numClassesDisplayed-1;
   uint16_t start_hour = current_hour;
@@ -178,8 +173,8 @@ void drawHours() {
   }
 
   // Line to separate hours with the schedule
-  if (config.showLines) display.drawFastVLine(config.columns[0], config.screenMargins[2], config.numClassesDisplayed*HOUR_HEIGHT-config.screenMargins[3], GxEPD_BLACK);
-
+  if (config.showLines) display.drawFastVLine(config.columns[0], config.screenMargins[2], config.numClassesDisplayed*config.classHeight, GxEPD_BLACK);
+  if (config.showLines) display.drawFastHLine(0, config.screenMargins[2], config.columns[1], GxEPD_BLACK);
   for (char i = 0; i < config.numClassesDisplayed; ++i) {
     char hours[7] = "      ";  // 6 chars + null
 
@@ -189,9 +184,8 @@ void drawHours() {
     display.setCursor(x, y);
     display.print(hours);
 
-    if (config.showLines && (i+start_hour != lastShown || config.screenMargins[2]==0)) 
-      display.drawFastHLine(0, config.screenMargins[2] + HOUR_HEIGHT * pos++, config.columns[1], GxEPD_BLACK);
-    y += HOUR_HEIGHT;
+    if (config.showLines) display.drawFastHLine(0, config.screenMargins[2] + config.classHeight * pos++, config.columns[1], GxEPD_BLACK);
+    y += config.classHeight;
   }
 }
 
@@ -214,19 +208,18 @@ void drawClasses(char classes[][128], int16_t durations[]) {
       duration = durations[i]-timePassed;
     }
 
-    if (duration <= config.numClassesDisplayed-pos) drawClass(pos, classes[i], duration, (i == curr_class_pos) ? GxEPD_RED : GxEPD_BLACK);
-    else drawClass(pos, classes[i], config.numClassesDisplayed-pos, (i == curr_class_pos) ? GxEPD_RED : GxEPD_BLACK); // If class will not fit in the schedule, "cut it"
+    drawClass(pos, classes[i], min((int)duration,config.numClassesDisplayed-pos), (i == curr_class_pos) ? GxEPD_RED : GxEPD_BLACK);
     i += durations[i];
     pos += duration;
   }
 
-  if (config.showLines) display.drawFastVLine(config.columns[1], config.screenMargins[2], display_height - config.screenMargins[3], GxEPD_BLACK);
+  if (config.showLines) display.drawFastVLine(config.columns[1], 0, display_height, GxEPD_BLACK);
 }
 
 // Draws a QR code of the website where the full schedule can be found
 void drawQR() {
   uint16_t qr_x = (display_width + config.columns[2] - QR_SIZE) / 2;
-  uint16_t qr_y = display_height - QR_SIZE - config.screenMargins[3];
+  uint16_t qr_y = display_height - QR_SIZE;
   display.drawBitmap(qr_x, qr_y, qr, QR_SIZE, QR_SIZE, GxEPD_BLACK);
 
   const char text[] = "Horari sencer:";
@@ -237,7 +230,7 @@ void drawQR() {
   uint16_t text_x = (display_width + config.columns[2] - tbw) / 2;
   uint16_t text_y = qr_y - CHAR_HEIGHT;
 
-  if (config.showLines && config.screenMargins[2]!=0) display.drawFastHLine(config.columns[2], text_y - CHAR_HEIGHT - MARGIN*2, display_width - config.columns[2], GxEPD_BLACK);
+  // if (config.showLines && config.screenMargins[2]!=0) display.drawFastHLine(config.columns[2], text_y - CHAR_HEIGHT - MARGIN*2, display_width - config.columns[2], GxEPD_BLACK);
   display.setCursor(text_x, text_y);
   display.print(text);
 }
@@ -248,7 +241,7 @@ void drawCurrentNextClass(char classes[][128], int16_t durations[]) {
   uint16_t ind_next_start;
 
   uint16_t x = config.columns[2] + 2*MARGIN;
-  uint16_t y = MARGIN+CHAR_HEIGHT+config.screenMargins[2];
+  uint16_t y = MARGIN+CHAR_HEIGHT;
   display.setCursor(x, y);
   display.print("Classe en curs:");
 
@@ -305,6 +298,7 @@ void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCh
   int currentY = y;
   const char* lineStart = text;
   int lineLength = 0;
+  char temp[128];
 
   const char* wordStart;
   int wordLength;
@@ -320,7 +314,10 @@ void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCh
     // If adding this word exceeds max length, print current line and start new one
     if (lineLength > 0 && (lineLength + wordLength + 1) > maxCharsPerLine) {
       display.setCursor(x, currentY);
-      display.print(String(lineStart, lineLength));  // Print the current line
+
+      strncpy(temp, lineStart, lineLength);
+      temp[lineLength] = '\0';
+      display.print(temp);
       currentY += lineHeight;  // Move to the next line
 
       // Reset for the new line
@@ -337,8 +334,9 @@ void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCh
     // Handle newline
     if (*text == '\n') {
       display.setCursor(x, currentY);
-      display.print(String(lineStart, lineLength));  // Print the current line
-      currentY += lineHeight;
+      strncpy(temp, lineStart, lineLength);
+      temp[lineLength] = '\0';
+      display.print(temp);      currentY += lineHeight;
 
       // Reset for the next line
       text++;
@@ -355,7 +353,9 @@ void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCh
   // Print any leftover text in the current line
   if (lineLength > 0) {
     display.setCursor(x, currentY);
-    display.print(String(lineStart, lineLength));
+    strncpy(temp, lineStart, lineLength);
+    temp[lineLength] = '\0';
+    display.print(temp);
   }
 }
 
@@ -396,9 +396,10 @@ void updateCurrentHour(char classes[][128], int16_t durations[]) {
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
+  unsigned long startAttempt = millis();
   while (WiFi.status() != WL_CONNECTED) {
+    if (millis() - startAttempt > 5000) return;
     delay(500);
-    Serial.print(".");
   }
   Serial.println("");
   Serial.println("WiFi connected.");

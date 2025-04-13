@@ -2,7 +2,7 @@
 
 void setup() {
   setupLayout(WIDE_LAYOUT);
-  setLines(false);
+  //setLines(false);
 
   char classes[NUM_CLASSES][128] = {
     "SRGGE-MIRI 10 L", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",

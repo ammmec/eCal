@@ -34,7 +34,7 @@ extern uint16_t display_width;
 
 // Bitmap sizes
 #define CLASS_BP_WIDTH  24
-#define CLASS_BP_HEIGHT 60
+#define CLASS_BP_HEIGHT 6
 #define QR_SIZE 125
 
 enum Layout {

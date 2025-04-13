@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 # === Constants ===
 CANVAS_WIDTH = 24
-CANVAS_HEIGHT = 60
+CANVAS_HEIGHT = 6
 
 # Colors
 BLACK = (0, 0, 0)
