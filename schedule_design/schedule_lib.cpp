@@ -56,8 +56,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
 
         .numClassesDisplayed = 13,
         
-        .classHeight = CLASS_BP_HEIGHT,
-        .classWidth = (uint16_t)(CLASS_BP_WIDTH*(7.5)),
+        .classWidth = (uint16_t)(CLASS_BP_WIDTH*(7.5)) - (uint16_t)(CLASS_BP_WIDTH*(7.5))%CLASS_BP_WIDTH,
 
         .hourLine = CHAR_WIDTH*6+MARGIN*2
       };
@@ -67,6 +66,30 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
       config.endClassLine = config.startAnnouncementsLine = config.hourLine+config.classWidth+MARGIN*2;
       config.rows[0] = (CHAR_HEIGHT+MARGIN*2)*7;
       config.rows[1] = display_height - (QR_SIZE + (CHAR_HEIGHT + MARGIN)*2);
+      break;
+
+    case SIMPLE_LAYOUT:
+      display.setRotation(1);
+      display_height = display.height();
+      display_width = display.width();
+      config = {
+        .showLines = lines,
+        .showQR = false,
+        .showAnnouncements = false,
+        .showCurrNext = false,
+        .saveEnergy = saveEnergy,
+        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
+
+        .numClassesDisplayed = 13,
+
+        .hourLine = CHAR_WIDTH*6+MARGIN*2,
+        .endClassLine = display_width,
+        .startAnnouncementsLine = 0
+      };
+      config.classHeight = (display_height/config.numClassesDisplayed);
+      config.classWidth =  (display_width - config.hourLine) - (display_width - config.hourLine)%CLASS_BP_WIDTH;
+      config.bottomMargin = (display_height-(config.classHeight*config.numClassesDisplayed))/2;
+      config.topMargin = config.bottomMargin + ((display_height-config.classHeight*config.numClassesDisplayed) % 2 != 0);
       break;
 
     case HORIZONTAL_LAYOUT:

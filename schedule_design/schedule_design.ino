@@ -3,15 +3,15 @@
 void setup() {
   // setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule)
   setupLayout();
-  setLines(false);
+  //setLines(false);
 
   char classes[NUM_CLASSES][128] = {
-    "SRGGE-MIRI 10 L", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",
-    "GEI FM 20T", "", "GEI PRO1 20T", "TANCAT", "TANCAT", ""
+    "FM 10 L", "FM 10 L", "SO2 20 T", "SO2 10 T", "", "", "", "DSBM 10 L",
+    "DSBM 10 L", "", "", "", "CI 10 T"
   };
   int16_t durations[NUM_CLASSES] = {
-    1, 1, 2, -1, 3, -1, -2,
-    1, 0, 1, 2, -1, 0
+    2, -1, 2, -1, 0, 0, 0,
+    2, -1, 0, 0, 0, 1
   };
 
   drawSchedule(classes, durations, "Aquesta aula quedara tancada automaticament mentres no hi hagi classe");

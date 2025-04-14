@@ -40,7 +40,8 @@ extern uint16_t display_width;
 enum Layout {
   DEFAULT_LAYOUT,
   VERBOSE_LAYOUT,
-  HORIZONTAL_LAYOUT
+  HORIZONTAL_LAYOUT,
+  SIMPLE_LAYOUT
 };
 
 // Layout structure (default)
