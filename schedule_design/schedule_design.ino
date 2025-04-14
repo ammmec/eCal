@@ -1,8 +1,9 @@
 #include "schedule_lib.h"
 
 void setup() {
-  setupLayout(WIDE_LAYOUT);
-  //setLines(false);
+  // setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule)
+  setupLayout();
+  setLines(false);
 
   char classes[NUM_CLASSES][128] = {
     "SRGGE-MIRI 10 L", "GEI FM 10T", "GEI LP 10T", "GEI LP 10T", "GEI IA 10T", "GEI IA 10T", "GEI IA 10T",
@@ -13,7 +14,7 @@ void setup() {
     1, 0, 1, 2, -1, 0
   };
 
-  drawSchedule(classes, durations);
+  drawSchedule(classes, durations, "Aquesta aula quedara tancada automaticament mentres no hi hagi classe");
 }
 
 void loop() {}

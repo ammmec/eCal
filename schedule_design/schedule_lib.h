@@ -39,10 +39,8 @@ extern uint16_t display_width;
 
 enum Layout {
   DEFAULT_LAYOUT,
-  WIDE_LAYOUT,
-  HORIZONTAL_LAYOUT,
-  PICTURE
-  // add more as needed
+  VERBOSE_LAYOUT,
+  HORIZONTAL_LAYOUT
 };
 
 // Layout structure (default)
@@ -51,27 +49,35 @@ struct LayoutConfig {
   bool showQR;
   bool showAnnouncements;
   bool showCurrNext;
+  bool saveEnergy;
+  bool staticSchedule;
 
   char numClassesDisplayed;
   // Rectangle (1h class) height and width
   uint16_t classHeight; // Has to be divisible by 60
   uint16_t classWidth;  // Has to be divisible by 25
 
-  // margins of the display. {left, right, top, bottom}
-  char screenMargins[4];
+  // margins of the display
+  uint16_t topMargin;
+  uint16_t bottomMargin;
 
-  // columns[0] -> hours line/classess start
-  // columns[1] -> class end line
-  // columns[2] -> announcements line line
-  uint16_t columns[3];
+  uint16_t hourLine;
+  uint16_t endClassLine;
+  uint16_t startAnnouncementsLine;
+
   uint16_t rows[2];
 };
 
 // Globals
 extern LayoutConfig config;
 
+extern char prevAnnouncements[256];
+extern char prevAnnouncements[256];
+extern char prevClasses[NUM_CLASSES][128];
+extern int16_t prevDurations[NUM_CLASSES];
+extern char prevStartHour;
 
-extern uint16_t current_hour;
+extern uint16_t currentHour;
 extern char curr_class_pos;
 
 // Bitmaps
@@ -81,14 +87,17 @@ extern const unsigned char avisos_bw[];
 extern const unsigned char avisos_red[];
 
 // Function declarations
-void setupLayout(Layout l, bool lines = true);
+void setupLayout(Layout l = DEFAULT_LAYOUT, bool lines = true, bool saveEnergy = false, bool staticSchedule = false);
 void setLines(bool lines);
-void drawSchedule(char classes[][128], int16_t durations[]);
+void setNumClassesDisplayed(char nClasses);
+bool isScheduleChanged(char classes[][128], int16_t durations[], char announcements[], char startHour);
+void drawSchedule(char classes[][128], int16_t durations[], char announcements[]);
+void drawPicture(bool portrait, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char picture_bw[], const unsigned char picture_red[]);
 void updateCurrentHour(char classes[][128], int16_t durations[]);
 void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], uint16_t color);
 void drawClass(char position, char name[], char duration, uint16_t color);
-void drawHours();
-void drawClasses(char classes[][128], int16_t durations[]);
+void drawHours(char start);
+void drawClasses(char classes[][128], int16_t durations[], char start);
 void drawQR();
 void drawCurrentNextClass(char classes[][128], int16_t durations[]);
 void drawAnnouncements(char announcement[]);

@@ -6,57 +6,67 @@ GxEPD2_3C < GxEPD2_750c_Z08, GxEPD2_750c_Z08::HEIGHT / 4 > display(GxEPD2_750c_Z
 uint16_t display_height = 800;
 uint16_t display_width = 480;
 LayoutConfig config;
-uint16_t current_hour = 8;
+uint16_t currentHour = 8;
 char curr_class_pos;
+char prevAnnouncements[256];
+char prevClasses[NUM_CLASSES][128];
+int16_t prevDurations[NUM_CLASSES];
+char prevStartHour;
 
-void setupLayout(Layout l, bool lines) {
-  switch (l) {
+
+void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule) {
+  switch (layout) {
     case DEFAULT_LAYOUT:
       display.setRotation(1);
       display_height = display.height();
       display_width = display.width();
       config = {
-        .showLines = true,
+        .showLines = lines,
+        .showQR = true,
+        .showAnnouncements = true,
+        .showCurrNext = false,
+        .saveEnergy = saveEnergy,
+        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
+
+        .numClassesDisplayed = 7,
+
+        .topMargin = 0,
+        .bottomMargin = 0,
+      
+        .hourLine = CHAR_WIDTH*6+MARGIN*2,
+        .endClassLine = display_width,
+        .startAnnouncementsLine = 0
+      };
+      config.classWidth =  (display_width - config.hourLine) - (display_width - config.hourLine)%CLASS_BP_WIDTH;
+      config.classHeight = ((display_height/2)/config.numClassesDisplayed);
+      config.rows[0] = config.classHeight*config.numClassesDisplayed + MARGIN*3;
+      break;
+
+    case VERBOSE_LAYOUT:
+      display.setRotation(1);
+      display_height = display.height();
+      display_width = display.width();
+      config = {
+        .showLines = lines,
         .showQR = true,
         .showAnnouncements = true,
         .showCurrNext = true,
+        .saveEnergy = false, // It has to update the "current" and "next" class 
+        .staticSchedule = saveEnergy || staticSchedule,
 
         .numClassesDisplayed = 13,
         
         .classHeight = CLASS_BP_HEIGHT,
         .classWidth = (uint16_t)(CLASS_BP_WIDTH*(7.5)),
 
-        .screenMargins = {0, 0, 4, 3},
-
-        .columns = {CHAR_WIDTH*6+MARGIN*2, 0, 0}
+        .hourLine = CHAR_WIDTH*6+MARGIN*2
       };
       config.classHeight = (display_height/config.numClassesDisplayed);
-      config.screenMargins[3] = (display_height-(config.classHeight*config.numClassesDisplayed))/2;
-      config.screenMargins[2] = config.screenMargins[3] + ((display_height-config.classHeight*config.numClassesDisplayed) % 2 != 0);
-      config.columns[1] = config.columns[2] = config.columns[0]+config.classWidth+MARGIN*2;
+      config.bottomMargin = (display_height-(config.classHeight*config.numClassesDisplayed))/2;
+      config.topMargin = config.bottomMargin + ((display_height-config.classHeight*config.numClassesDisplayed) % 2 != 0);
+      config.endClassLine = config.startAnnouncementsLine = config.hourLine+config.classWidth+MARGIN*2;
       config.rows[0] = (CHAR_HEIGHT+MARGIN*2)*7;
       config.rows[1] = display_height - (QR_SIZE + (CHAR_HEIGHT + MARGIN)*2);
-      break;
-
-    case WIDE_LAYOUT:
-      display.setRotation(1);
-      display_height = display.height();
-      display_width = display.width();
-      config = {
-        .showLines = true,
-        .showQR = true,
-        .showAnnouncements = true,
-        .showCurrNext = false,
-
-        .numClassesDisplayed = 6,
-
-        .screenMargins = {0, 0, 0, 0},
-      
-        .columns = {CHAR_WIDTH*6+MARGIN*2, display_width, 0}
-      };
-      config.classWidth =  (display_width - config.columns[0]) - (display_width - config.columns[0])%CLASS_BP_WIDTH;
-      config.classHeight = ((display_height/2)/config.numClassesDisplayed);
-      config.rows[0] = config.classHeight*config.numClassesDisplayed + MARGIN*3;
       break;
 
     case HORIZONTAL_LAYOUT:
@@ -65,28 +75,24 @@ void setupLayout(Layout l, bool lines) {
       display_width = display.width();
 
       config = {
-        .showLines = true,
+        .showLines = lines,
         .showQR = true,
         .showAnnouncements = true,
         .showCurrNext = false,
+        .saveEnergy = saveEnergy,
+        .staticSchedule = staticSchedule,
 
         .numClassesDisplayed = 7,
 
-        // margins of the display. {left, right, top, bottom}
-        .screenMargins = {0, 0, 0, 0},
-
-        // columns[0] -> hours line/classess start
-        // columns[1] -> class end line
-        // columns[2] -> announcements line line
-        .columns = {CHAR_WIDTH*6+MARGIN*2, 0, 0},
+        .hourLine = CHAR_WIDTH*6+MARGIN*2,
         .rows = {0, 0}
       };
       config.classHeight = (display_height/config.numClassesDisplayed);
-      config.screenMargins[3] = (display_height-(config.classHeight*config.numClassesDisplayed))/2;
-      config.screenMargins[2] = config.screenMargins[3] + ((display_height-config.classHeight*config.numClassesDisplayed) % 2 != 0);
-      uint16_t usableWidth = (display_width / 2) - config.columns[0];
+      config.bottomMargin = (display_height-(config.classHeight*config.numClassesDisplayed))/2;
+      config.topMargin = config.bottomMargin + ((display_height-config.classHeight*config.numClassesDisplayed) % 2 != 0);
+      uint16_t usableWidth = (display_width / 2) - config.hourLine;
       config.classWidth = usableWidth - (usableWidth % CLASS_BP_WIDTH);
-      config.columns[1] = config.columns[2] = config.columns[0]+config.classWidth+MARGIN*2;
+      config.endClassLine = config.startAnnouncementsLine = config.hourLine+config.classWidth+MARGIN*2;
       config.rows[1] = display_height - (QR_SIZE + (CHAR_HEIGHT + MARGIN)*2);
       break;
   }
@@ -94,6 +100,10 @@ void setupLayout(Layout l, bool lines) {
 
 void setLines(bool lines) {
   config.showLines = lines;
+}
+
+void setNumClassesDisplayed(char nClasses) {
+  config.numClassesDisplayed = nClasses;
 }
 
 void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], uint16_t color) {
@@ -112,9 +122,9 @@ void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], ui
 // name <- name of the class
 // duration <- how many hours the class lasts
 void drawClass(char position, char name[], char duration, uint16_t color) {
-  uint16_t x = (config.columns[1] - config.columns[0] - config.classWidth)/2 + config.columns[0];
+  uint16_t x = (config.endClassLine - config.hourLine - config.classWidth)/2 + config.hourLine;
   uint16_t h = (config.classHeight * duration - 2*MARGIN) - (config.classHeight * duration - 2*MARGIN)%CLASS_BP_HEIGHT;
-  uint16_t y = config.classHeight*position + (config.classHeight*duration)/2 + config.screenMargins[2] - h/2;
+  uint16_t y = config.classHeight*position + (config.classHeight*duration)/2 + config.topMargin - h/2;
 
   // Center text
   int16_t tbx, tby;
@@ -123,14 +133,6 @@ void drawClass(char position, char name[], char duration, uint16_t color) {
 
   uint16_t tx = x + (config.classWidth - tbw) / 2;
   uint16_t ty = y + (h - tbh) / 2 + CHAR_HEIGHT;
-
-  // Draw dotted background manually
-  /*for (int i = x; i < x + config.classWidth; ++i) {
-    for (int j = y + MARGIN; j < y + h - MARGIN; ++j) {
-      if (i % 3 == 0 && j % 3 == 0) display.drawPixel(i, j, color);
-      else if (duration > 1) display.drawPixel(i, j, GxEPD_WHITE);
-    }
-  }*/
 
   if(strcmp(name, CLOSED) != 0) { // If the class is closed no need to draw the bitmap
     // Draw dotted background in bitmap
@@ -144,8 +146,8 @@ void drawClass(char position, char name[], char duration, uint16_t color) {
     display.drawRect(x, y, config.classWidth, h, color);
   }
   else {
-    display.writeLine (config.columns[0], config.classHeight*position, config.columns[1], config.classHeight*(position+1), color);
-    display.writeLine (config.columns[0], config.classHeight*(position+1), config.columns[1], config.classHeight*position, color);
+    display.writeLine (config.hourLine, config.classHeight*position, config.endClassLine, config.classHeight*(position+1), color);
+    display.writeLine (config.hourLine, config.classHeight*(position+1), config.endClassLine, config.classHeight*position, color);
   }
 
   // White outline
@@ -158,42 +160,36 @@ void drawClass(char position, char name[], char duration, uint16_t color) {
 }
 
 // Draws, on the left of the screen, the hours of the schedule
-void drawHours() {
+void drawHours(char start) {
   // Giving some margin on the left
   uint16_t x = MARGIN;
-  // y position ->  config.screenMargins[2] for the border
+  // y position ->  config.topMargin for the border
   //                (config.classHeight + CHAR_HEIGHT)/2 to center inside its spot
-  uint16_t y = config.screenMargins[2] + (config.classHeight + CHAR_HEIGHT) / 2;
-  char pos = 1;
-  char lastShown = current_hour+config.numClassesDisplayed-1;
-  uint16_t start_hour = current_hour;
-  if (lastShown > LAST_HOUR) { // Avoid an empty schedule
-    start_hour -= (lastShown-LAST_HOUR);
-    lastShown = LAST_HOUR;
-  }
+  uint16_t y = config.topMargin + (config.classHeight + CHAR_HEIGHT) / 2;
+  char pos = 1;  
 
   // Line to separate hours with the schedule
-  if (config.showLines) display.drawFastVLine(config.columns[0], config.screenMargins[2], config.numClassesDisplayed*config.classHeight, GxEPD_BLACK);
-  if (config.showLines) display.drawFastHLine(0, config.screenMargins[2], config.columns[1], GxEPD_BLACK);
+  if (config.showLines) display.drawFastVLine(config.hourLine, config.topMargin, config.numClassesDisplayed*config.classHeight, GxEPD_BLACK);
+  if (config.showLines) display.drawFastHLine(0, config.topMargin, config.endClassLine, GxEPD_BLACK);
   for (char i = 0; i < config.numClassesDisplayed; ++i) {
     char hours[7] = "      ";  // 6 chars + null
 
     // Format hour string
-    snprintf(hours, sizeof(hours), "%d-%dh", i+start_hour, i+start_hour+1);
+    snprintf(hours, sizeof(hours), "%d-%dh", i+start, i+start+1);
 
     display.setCursor(x, y);
     display.print(hours);
 
-    if (config.showLines) display.drawFastHLine(0, config.screenMargins[2] + config.classHeight * pos++, config.columns[1], GxEPD_BLACK);
+    if (config.showLines) display.drawFastHLine(0, config.topMargin + config.classHeight * pos++, config.endClassLine, GxEPD_BLACK);
     y += config.classHeight;
   }
 }
 
 // Given an array of strings, where the string is the class and the position is the hour it is done in,
 // print each single class in the schedule
-void drawClasses(char classes[][128], int16_t durations[]) {
-  char i = (current_hour+config.numClassesDisplayed-1 <= LAST_HOUR) ? current_hour-START_HOUR : 
-                                                                      -(config.numClassesDisplayed-1)+LAST_HOUR-START_HOUR;
+void drawClasses(char classes[][128], int16_t durations[], char start) {
+  char i = start - START_HOUR;
+
   char pos = 0; 
   while (pos < config.numClassesDisplayed) {
     if (durations[i] == 0) {
@@ -208,17 +204,17 @@ void drawClasses(char classes[][128], int16_t durations[]) {
       duration = durations[i]-timePassed;
     }
 
-    drawClass(pos, classes[i], min((int)duration,config.numClassesDisplayed-pos), (i == curr_class_pos) ? GxEPD_RED : GxEPD_BLACK);
+    drawClass(pos, classes[i], min((int)duration,config.numClassesDisplayed-pos), (!config.saveEnergy && i == curr_class_pos) ? GxEPD_RED : GxEPD_BLACK);
     i += durations[i];
     pos += duration;
   }
 
-  if (config.showLines) display.drawFastVLine(config.columns[1], 0, display_height, GxEPD_BLACK);
+  if (config.showLines) display.drawFastVLine(config.endClassLine, 0, display_height, GxEPD_BLACK);
 }
 
 // Draws a QR code of the website where the full schedule can be found
 void drawQR() {
-  uint16_t qr_x = (display_width + config.columns[2] - QR_SIZE) / 2;
+  uint16_t qr_x = (display_width + config.startAnnouncementsLine - QR_SIZE) / 2;
   uint16_t qr_y = display_height - QR_SIZE;
   display.drawBitmap(qr_x, qr_y, qr, QR_SIZE, QR_SIZE, GxEPD_BLACK);
 
@@ -227,10 +223,10 @@ void drawQR() {
   uint16_t tbw, tbh;
   display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
 
-  uint16_t text_x = (display_width + config.columns[2] - tbw) / 2;
+  uint16_t text_x = (display_width + config.startAnnouncementsLine - tbw) / 2;
   uint16_t text_y = qr_y - CHAR_HEIGHT;
 
-  // if (config.showLines && config.screenMargins[2]!=0) display.drawFastHLine(config.columns[2], text_y - CHAR_HEIGHT - MARGIN*2, display_width - config.columns[2], GxEPD_BLACK);
+  // if (config.showLines && config.topMargin!=0) display.drawFastHLine(config.startAnnouncementsLine, text_y - CHAR_HEIGHT - MARGIN*2, display_width - config.startAnnouncementsLine, GxEPD_BLACK);
   display.setCursor(text_x, text_y);
   display.print(text);
 }
@@ -240,7 +236,7 @@ void drawCurrentNextClass(char classes[][128], int16_t durations[]) {
   char nextClass[64];
   uint16_t ind_next_start;
 
-  uint16_t x = config.columns[2] + 2*MARGIN;
+  uint16_t x = config.startAnnouncementsLine + 2*MARGIN;
   uint16_t y = MARGIN+CHAR_HEIGHT;
   display.setCursor(x, y);
   display.print("Classe en curs:");
@@ -290,7 +286,7 @@ void drawCurrentNextClass(char classes[][128], int16_t durations[]) {
   }
 
   display.setFont(&FreeMonoBold9pt7b);
-  if (config.showLines) display.drawFastHLine(config.columns[2], config.rows[0], display_width - config.columns[2], GxEPD_BLACK);
+  if (config.showLines) display.drawFastHLine(config.startAnnouncementsLine, config.rows[0], display_width - config.startAnnouncementsLine, GxEPD_BLACK);
 }
 
 void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCharsPerLine) {
@@ -360,7 +356,7 @@ void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCh
 }
 
 void drawAnnouncements(char announcement[]) {
-  uint16_t x = config.columns[2] + MARGIN*2;
+  uint16_t x = config.startAnnouncementsLine + MARGIN*2;
   uint16_t y = config.rows[0]+MARGIN;
   char icon_w = 15;
   char icon_h = 15;
@@ -377,14 +373,14 @@ void drawAnnouncements(char announcement[]) {
     int16_t tbx, tby;
     uint16_t tbw, tbh;
     display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
-    tbx = (display_width+config.columns[2]-tbw)/2;
+    tbx = (display_width+config.startAnnouncementsLine-tbw)/2;
     tby = ((config.rows[1]-config.rows[0]))/2 + y;
 
     display.setCursor(tbx, tby);
     display.print(text);
   }
   else {
-    printWithLineBreaks(announcement, x, y, (display_width-(config.columns[2]+MARGIN*4))/CHAR_WIDTH);
+    printWithLineBreaks(announcement, x, y, (display_width-(config.startAnnouncementsLine+MARGIN*4))/CHAR_WIDTH);
   }
 
   display.setFont(&FreeMonoBold9pt7b);
@@ -409,11 +405,11 @@ void updateCurrentHour(char classes[][128], int16_t durations[]) {
 
   struct tm timeinfo;
   if (getLocalTime(&timeinfo)) {
-    current_hour = timeinfo.tm_hour;
+    currentHour = timeinfo.tm_hour;
     uint16_t minute = timeinfo.tm_min;
 
     if (minute >= 50) {
-      current_hour = (current_hour + 1) % 24; // Wrap around to 0 if it's 23:50+
+      currentHour = (currentHour + 1) % 24; // Wrap around to 0 if it's 23:50+
     }
   } else {
     Serial.println("Failed to get time");
@@ -423,10 +419,10 @@ void updateCurrentHour(char classes[][128], int16_t durations[]) {
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
 
-  if (current_hour > LAST_HOUR) current_hour = LAST_HOUR;
-  else if (current_hour < START_HOUR) current_hour = START_HOUR;
+  if (currentHour > LAST_HOUR) currentHour = LAST_HOUR;
+  else if (currentHour < START_HOUR) currentHour = START_HOUR;
 
-  curr_class_pos = current_hour-START_HOUR;
+  curr_class_pos = currentHour-START_HOUR;
   if (strcmp(classes[curr_class_pos], "") != 0) {
     while (durations[curr_class_pos]<0) --curr_class_pos;
   }
@@ -435,8 +431,20 @@ void updateCurrentHour(char classes[][128], int16_t durations[]) {
   }
 }
 
+bool isScheduleChanged(char classes[][128], int16_t durations[], char announcements[], char startHour) {
+  if (strcmp(prevAnnouncements, announcements) != 0 || prevStartHour != startHour) {
+    return true;
+  }
 
-void drawSchedule(char classes[][128], int16_t durations[]) {
+  for (int i = 0; i < NUM_CLASSES; i++) {
+    if (strcmp(prevClasses[i], classes[i]) != 0 || prevDurations[i] != durations[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void drawSchedule(char classes[][128], int16_t durations[], char announcements[]) {
   updateCurrentHour(classes, durations);
 
   pinMode(PWR, OUTPUT);
@@ -445,18 +453,60 @@ void drawSchedule(char classes[][128], int16_t durations[]) {
 
   display.firstPage();
   display.setFullWindow();
+
+
   display.setFont(&FreeMonoBold9pt7b);
   display.setTextColor(GxEPD_BLACK);
+
+  char startHour;
+  if (config.staticSchedule) {
+    char middleHour = START_HOUR+config.numClassesDisplayed-1;
+    startHour = currentHour < middleHour ? START_HOUR : middleHour;
+  } 
+  else {
+    startHour = min(currentHour, (uint16_t)(LAST_HOUR+1-config.numClassesDisplayed));
+  }
+
+  if (config.saveEnergy && !isScheduleChanged(classes, durations, announcements, startHour)) return; // No changes in announcements or in classes, do not have to update at all
+
+  strncpy(prevAnnouncements, announcements, sizeof(prevAnnouncements));
+  prevStartHour = startHour;
+  for (int i = 0; i < NUM_CLASSES; i++) {
+    strcpy(prevClasses[i], classes[i]);
+    prevDurations[i] = durations[i];
+  }
+
   do {
     display.fillScreen(GxEPD_WHITE);
 
-    drawHours();
-    drawClasses(classes, durations);
+    drawHours(startHour);
+    drawClasses(classes, durations, startHour);
     
     if (config.showCurrNext) drawCurrentNextClass(classes, durations); // TODO: change number to "hour"
-    if(config.showAnnouncements) drawAnnouncements("Aquest es un missatge molt llarg que s'haura de tallar en mes d'un!");
+    if(config.showAnnouncements) drawAnnouncements(announcements);
     if (config.showQR) drawQR();
     
+  } while (display.nextPage());
+
+  display.powerOff();
+  digitalWrite(PWR, LOW);
+}
+
+void drawPicture(bool portrait, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char picture_bw[], const unsigned char picture_red[]) {
+  pinMode(PWR, OUTPUT);
+  digitalWrite(PWR, HIGH);
+  display.init(115200, true, 2, false);
+  display.firstPage();
+  display.setFullWindow();
+
+  display.setRotation(portrait);
+  display_height = display.height();
+  display_width = display.width();
+
+  do {
+    display.fillScreen(GxEPD_WHITE);
+    display.drawBitmap(x, y, picture_bw, display_width, display_height, GxEPD_BLACK);
+    display.drawBitmap(x, y, picture_red, display_width, display_height, GxEPD_RED);
   } while (display.nextPage());
 
   display.powerOff();
