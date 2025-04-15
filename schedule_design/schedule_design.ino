@@ -5,7 +5,7 @@ void setup() {
   setupLayout();
   //setLines(false);
 
-  char classes[NUM_CLASSES][128] = {
+  char classes[NUM_CLASSES][32] = {
     "FM 10 L", "FM 10 L", "SO2 20 T", "SO2 10 T", "", "", "", "DSBM 10 L",
     "DSBM 10 L", "", "", "", "CI 10 T"
   };
@@ -14,7 +14,7 @@ void setup() {
     2, -1, 0, 0, 0, 1
   };
 
-  drawSchedule(classes, durations, "Aquesta aula quedara tancada automaticament mentres no hi hagi classe");
+  drawSchedule(classes, durations, "");
 }
 
 void loop() {}

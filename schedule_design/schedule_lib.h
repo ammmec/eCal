@@ -16,17 +16,16 @@
 #define CS   SS   // 5
 
 // Display size
-extern uint16_t display_height;
-extern uint16_t display_width;
+extern uint16_t displayHeight;
+extern uint16_t displayWidth;
 
 #define MARGIN 5 // Margins for text and lines
-#define HOUR_HEIGHT 61 // Maximum height for an hour slot to fit all classes
 
 // Character sizes (including spacing)
 #define CHAR_HEIGHT 9
 #define CHAR_WIDTH 11
 
-// Class related information
+// Schedule related information
 #define START_HOUR 8 // First hour of the day
 #define LAST_HOUR 20
 #define CLOSED  "TANCAT"
@@ -37,6 +36,7 @@ extern uint16_t display_width;
 #define CLASS_BP_HEIGHT 6
 #define QR_SIZE 125
 
+// Different layouts
 enum Layout {
   DEFAULT_LAYOUT,
   VERBOSE_LAYOUT,
@@ -44,42 +44,39 @@ enum Layout {
   SIMPLE_LAYOUT
 };
 
-// Layout structure (default)
+// Layout structure
 struct LayoutConfig {
   bool showLines;
   bool showQR;
   bool showAnnouncements;
   bool showCurrNext;
-  bool saveEnergy;
-  bool staticSchedule;
+  bool saveEnergy; // Schedule will not be refreshed unless it changes (does not show the current class in red)
+  bool staticSchedule; // if false, the top of the schedule will be the current class. Otherwise, it has morning and afternoon schedule
 
-  char numClassesDisplayed;
-  // Rectangle (1h class) height and width
-  uint16_t classHeight; // Has to be divisible by 60
-  uint16_t classWidth;  // Has to be divisible by 25
+  char numClassesDisplayed; // How many classes are displayed in the schedule
 
-  // margins of the display
+  // Size of the class rectangle (1h)
+  uint16_t classHeight;
+  uint16_t classWidth;
+
+  // Margins of the display, to center schedule
   uint16_t topMargin;
   uint16_t bottomMargin;
 
-  uint16_t hourLine;
-  uint16_t endClassLine;
-  uint16_t startAnnouncementsLine;
+  // Columns created by schedule, to position elements
+  uint16_t hourLine = CHAR_WIDTH*6+MARGIN*2; // Max size the hours take (ex: 20-21h)
+  uint16_t endClassLine; // x position where the class rectangle ends
+  uint16_t startAnnouncementsLine; // x position where announcements can start
 
+  // Rows created to separate different elements
   uint16_t rows[2];
 };
 
 // Globals
 extern LayoutConfig config;
 
-extern char prevAnnouncements[256];
-extern char prevAnnouncements[256];
-extern char prevClasses[NUM_CLASSES][128];
-extern int16_t prevDurations[NUM_CLASSES];
-extern char prevStartHour;
-
 extern uint16_t currentHour;
-extern char curr_class_pos;
+extern char curr_class_pos; // Index of current class in class array
 
 // Bitmaps
 extern const unsigned char class_bg[];
@@ -91,16 +88,16 @@ extern const unsigned char avisos_red[];
 void setupLayout(Layout l = DEFAULT_LAYOUT, bool lines = true, bool saveEnergy = false, bool staticSchedule = false);
 void setLines(bool lines);
 void setNumClassesDisplayed(char nClasses);
-bool isScheduleChanged(char classes[][128], int16_t durations[], char announcements[], char startHour);
-void drawSchedule(char classes[][128], int16_t durations[], char announcements[]);
+bool isScheduleChanged(char classes[][32], int16_t durations[], char announcements[], char startHour);
+void drawSchedule(char classes[][32], int16_t durations[], char announcements[]);
 void drawPicture(bool portrait, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char picture_bw[], const unsigned char picture_red[]);
-void updateCurrentHour(char classes[][128], int16_t durations[]);
+void updateCurrentHour(char classes[][32], int16_t durations[]);
 void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], uint16_t color);
 void drawClass(char position, char name[], char duration, uint16_t color);
 void drawHours(char start);
-void drawClasses(char classes[][128], int16_t durations[], char start);
+void drawClasses(char classes[][32], int16_t durations[], char start);
 void drawQR();
-void drawCurrentNextClass(char classes[][128], int16_t durations[]);
+void drawCurrentNextClass(char classes[][32], int16_t durations[]);
 void drawAnnouncements(char announcement[]);
 void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCharsPerLine);
 #endif // SCHEDULE_LIB_H
