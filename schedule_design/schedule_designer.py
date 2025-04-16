@@ -9,7 +9,7 @@ TOP_MARGIN = 0
 BOTTOM_MARGIN = 0
 
 RECT_WIDTH = (int)(CANVAS_WIDTH/2 - (11*6+MARGIN*2 + MARGIN*2))
-RECT_HEIGHT = 60
+RECT_HEIGHT = CANVAS_HEIGHT//7
 CLASSES_LENGTH = 0
 
 LEFT_COLUMN_WIDTH = 11*6+MARGIN*2
@@ -22,10 +22,17 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 
+
+current = 4
+closed = 6
+newAlert = 0
+goneAlert = 5
+
 # === Setup ===
 image = Image.new('RGB', (CANVAS_WIDTH, CANVAS_HEIGHT), WHITE)
 draw = ImageDraw.Draw(image)
-font = ImageFont.truetype("FreeMonoBold.ttf", 16)
+bold = ImageFont.truetype("FreeMonoBold.ttf", 16)
+font = ImageFont.truetype("FreeMono.ttf", 16)
 
 # === Functions ===
 def draw_class(position, label, duration):
@@ -34,24 +41,45 @@ def draw_class(position, label, duration):
     y_start = position * RECT_HEIGHT + TOP_MARGIN
     width = RECT_WIDTH
     height = RECT_HEIGHT * duration
-    color = RED if position == 2 else BLACK
+    color = RED if position == newAlert or position == goneAlert else BLACK
+    isCurrent = (position == current) or (position == current-duration+1)
+
+    if closed==position:
+        draw.line((x_start, y_start, x_start + width, y_start + height), fill=BLACK)
+        draw.line((x_start, y_start+height, x_start + width, y_start), fill=BLACK)
+
+        bbox = draw.textbbox((0, 0), "TANCAT", font=bold)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+
+        text_x = x_start + (width - text_width) // 2
+        text_y = y_start + (height - text_height) // 2 - text_height
+        draw.text((text_x, text_y), "TANCAT", font=bold, fill=BLACK, stroke_width=3, stroke_fill=WHITE)
+        return
 
     # Draw dotted pattern background
+    
     for x in range(x_start, x_start + width):
         for y in range(y_start + MARGIN, y_start + height - MARGIN):
-            draw.point((x, y), fill=color if (x % 3 == 0 and y % 3 == 0) else WHITE)
+            if (goneAlert == position): continue
+            if (isCurrent): 
+                draw.point((x, y), fill=color if (x % 2 == 0 and y % 2 == 0) or (x%2 != 0 and y%2 != 0) else WHITE)
+            else: draw.point((x, y), fill=color if (x % 3 == 0 and y % 3 == 0) else WHITE)
 
     # Border around the class block
-    draw.rectangle((x_start, y_start + MARGIN, x_start + width, y_start + height - MARGIN), outline=color, width=1)
+    draw.rectangle((x_start, y_start + MARGIN, x_start + width, y_start + height - MARGIN), outline=color, width=1 if not isCurrent else 2)
 
     # Center the text
-    bbox = draw.textbbox((0, 0), label, font=font)
+    bbox = draw.textbbox((0, 0), label, font=bold)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
 
     text_x = x_start + (width - text_width) // 2
     text_y = y_start + (height - text_height) // 2 - text_height
-    draw.text((text_x, text_y), label, font=font, fill=BLACK, stroke_width=3, stroke_fill=WHITE)
+    draw.text((text_x, text_y), label, font=bold, fill=BLACK, stroke_width=3, stroke_fill=WHITE)
+    
+    if (goneAlert == position):
+        draw.line((text_x, text_y+text_height+2, text_x+text_width, text_y+text_height+2), fill=BLACK)
 
 def draw_hour_labels(start, end):
     """Draws hour ranges (8-21h) on the left."""
@@ -62,7 +90,7 @@ def draw_hour_labels(start, end):
     y = TOP_MARGIN + (RECT_HEIGHT-text_height)//2 - text_height
     pos = 1
     for hour in range(start, end):
-        draw.text((x, y), f"{hour}-{hour + 1}h", font=font, fill=BLACK)
+        draw.text((x, y), f"{hour}-{hour + 1}h", font=bold if pos-1 == current else font, fill=BLACK)
         y += RECT_HEIGHT
         if hour != 20:
             draw.line((0, RECT_HEIGHT * pos + TOP_MARGIN, RIGHT_COLUMN_START, RECT_HEIGHT * pos + TOP_MARGIN), fill=BLACK)
@@ -87,25 +115,24 @@ def place_qr_code(x, y):
     
     # Draw label above QR
     label = "Horari sencer:"
-    bbox = draw.textbbox((0, 0), label, font=font)
+    bbox = draw.textbbox((0, 0), label, font=bold)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
     text_x = (x - text_width) // 2
     text_y = qr_y - text_height - MARGIN*3
-    draw.text((text_x, text_y), label, font=font, fill=BLACK)
+    draw.text((text_x, text_y), label, font=bold, fill=BLACK)
 
     text_y -= text_height+MARGIN
     global BOTTOM_ROW
     BOTTOM_ROW = text_y
-    #draw.line((0, text_y, CANVAS_WIDTH, text_y), fill=BLACK)
 
 def current_next_class():
     text = "Classe en curs:"
-    bbox = draw.textbbox((0, 0), text, font=font)
+    bbox = draw.textbbox((0, 0), text, font=bold)
     text_height = bbox[3] - bbox[1]
     text_x = RIGHT_COLUMN_START + 2*MARGIN
     text_y = MARGIN+TOP_MARGIN
-    draw.text((text_x, text_y), text, font=font, fill=BLACK)
+    draw.text((text_x, text_y), text, font=bold, fill=BLACK)
     text_y += text_height+MARGIN*2
 
     text = "SO2 20 T"
@@ -115,7 +142,7 @@ def current_next_class():
     text_y += text_height+MARGIN*4
 
     text = "Pròxima classe:"
-    draw.text((text_x, text_y), text, font=font, fill=BLACK)
+    draw.text((text_x, text_y), text, font=bold, fill=BLACK)
     text_y += text_height+MARGIN*2
 
     text = "CI 10 T"
@@ -132,10 +159,10 @@ def draw_announcements(msg, x, y):
     text_x = x
     text_y = y
     icon_size = 15
-    bbox = draw.textbbox((0, 0), msg, font=font)
+    bbox = draw.textbbox((0, 0), msg, font=bold)
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
-    draw.text((text_x+icon_size+MARGIN, text_y-text_height+icon_size), "Avisos:", font=font, fill=BLACK)
+    draw.text((text_x+icon_size+MARGIN, text_y-text_height+icon_size), "Avisos:", font=bold, fill=BLACK)
     img = Image.open("icons\\avisos.png").convert("RGB")
     img = img.resize((15, 15), resample=Image.NEAREST)
     image.paste(img, (text_x, text_y))
@@ -178,14 +205,16 @@ def draw_announcements(msg, x, y):
             draw.text((text_x, text_y+row*text_height), line, font=font, fill=BLACK)
 
 # === Drawing ===
-draw_hour_labels(8, 16)
+draw_hour_labels(8, 15)
 draw_layout_lines()
 
 # Draw some example class blocks
 draw_class(0, "FM 10 T", 1)
 draw_class(1, "DSBM 10 L", 1)
-draw_class(2, "SO2 20 T", 2)
-# draw_class(12, "CI 10 T", 1)
+draw_class(3, "SO2 20 T", 2)
+draw_class(5, "CI 10 T", 1)
+draw_class(6, "TANCAT", 1)
+draw_class(11, "CI 20 T", 2)
 
 # current_next_class()
 place_qr_code(RIGHT_COLUMN_START*3, CANVAS_HEIGHT)

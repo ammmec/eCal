@@ -135,7 +135,7 @@ void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], ui
     duration  <- how many hours the class lasts
     color     <- color of the class (red if it is the active one)
 */
-void drawClass(char position, char name[], char duration, uint16_t color) {
+void drawClass(char position, char name[], char duration, bool currentClass) {
   uint16_t x = (config.endClassLine - config.hourLine - config.classWidth)/2 + config.hourLine;
   uint16_t h = (config.classHeight * duration - 2*MARGIN) - (config.classHeight * duration - 2*MARGIN)%CLASS_BP_HEIGHT;
   uint16_t y = config.classHeight*position + (config.classHeight*duration)/2 + config.topMargin - h/2;
@@ -149,23 +149,34 @@ void drawClass(char position, char name[], char duration, uint16_t color) {
   uint16_t ty = y + (h - tbh) / 2 + CHAR_HEIGHT;
 
   if(strcmp(name, CLOSED) != 0) { // If the class is closed no need to draw the bitmap
-    // Draw dotted background in bitmap
-    for (int i = 0; i < config.classWidth; i += CLASS_BP_WIDTH) { // Repeat for as many times as needed for intended width
-      for (int j = 0; j < h; j += CLASS_BP_HEIGHT) {
-        display.drawBitmap(x+i, y+j, class_bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT, color, GxEPD_WHITE);
+    if (config.saveEnergy || !currentClass) {
+      // Draw dotted background in bitmap
+      for (int i = 0; i < config.classWidth; i += CLASS_BP_WIDTH) { // Repeat for as many times as needed for intended width
+        for (int j = 0; j < h; j += CLASS_BP_HEIGHT) {
+          display.drawBitmap(x+i, y+j, class_bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT, GxEPD_BLACK, GxEPD_WHITE);
+        }
+      }
+      // Border
+      display.drawRect(x, y, config.classWidth, h, GxEPD_BLACK);
+    }
+    else {
+      // Border
+      display.fillRect(x-2, y-2, config.classWidth+4, h+4, GxEPD_BLACK); // Thicker border
+      // Draw dotted background in bitmap
+      for (int i = 0; i < config.classWidth; i += CLASS_BP_WIDTH) { // Repeat for as many times as needed for intended width
+        for (int j = 0; j < h; j += CLASS_BP_HEIGHT) {
+          display.drawBitmap(x+i, y+j, current_class_bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT, GxEPD_BLACK, GxEPD_WHITE);
+        }
       }
     }
-    
-    // Border
-    display.drawRect(x, y, config.classWidth, h, color);
   }
   else {
-    display.writeLine (config.hourLine, config.classHeight*position, config.endClassLine, config.classHeight*(position+1), color);
-    display.writeLine (config.hourLine, config.classHeight*(position+1), config.endClassLine, config.classHeight*position, color);
+    display.writeLine (config.hourLine, config.classHeight*position, config.endClassLine, config.classHeight*(position+1), GxEPD_BLACK);
+    display.writeLine (config.hourLine, config.classHeight*(position+1), config.endClassLine, config.classHeight*position, GxEPD_BLACK);
   }
 
   // White outline
-  drawOutline(tx, ty, 3, 2, name, GxEPD_WHITE);
+  drawOutline(tx, ty, 3, 3, name, GxEPD_WHITE);
 
   // Actual text
   display.setTextColor(GxEPD_BLACK);
@@ -185,18 +196,28 @@ void drawHours(char start) {
   // Line to separate hours with the schedule
   if (config.showLines) display.drawFastVLine(config.hourLine, config.topMargin, config.numClassesDisplayed*config.classHeight, GxEPD_BLACK);
   if (config.showLines) display.drawFastHLine(0, config.topMargin, config.endClassLine, GxEPD_BLACK);
+  display.setFont(&FreeMono9pt7b);
   for (char i = 0; i < config.numClassesDisplayed; ++i) {
     char hours[7] = "      ";  // 6 chars + null
 
     // Format hour string
     snprintf(hours, sizeof(hours), "%d-%dh", i+start, i+start+1);
 
-    display.setCursor(x, y);
-    display.print(hours);
+    if (config.saveEnergy || i+start != currentHour) {
+      display.setCursor(x, y);
+      display.print(hours);
+    }
+    else {
+      display.setFont(&FreeMonoBold9pt7b);
+      display.setCursor(x, y);
+      display.print(hours);
+      display.setFont(&FreeMono9pt7b);
+    }
 
     if (config.showLines) display.drawFastHLine(0, config.topMargin + config.classHeight * pos++, config.endClassLine, GxEPD_BLACK);
     y += config.classHeight;
   }
+  display.setFont(&FreeMonoBold9pt7b);
 }
 
 // Given an array of strings, where the string is the class and the position is the hour it is done in,
@@ -218,7 +239,7 @@ void drawClasses(char classes[][32], int16_t durations[], char start) {
       duration = durations[i]-timePassed;
     }
 
-    drawClass(pos, classes[i], min((int)duration,config.numClassesDisplayed-pos), (!config.saveEnergy && i == curr_class_pos) ? GxEPD_RED : GxEPD_BLACK);
+    drawClass(pos, classes[i], min((int)duration,config.numClassesDisplayed-pos), i == curr_class_pos);
     i += durations[i];
     pos += duration;
   }

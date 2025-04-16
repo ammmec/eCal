@@ -80,6 +80,7 @@ extern char curr_class_pos; // Index of current class in class array
 
 // Bitmaps
 extern const unsigned char class_bg[];
+extern const unsigned char current_class_bg[];
 extern const unsigned char qr[];
 extern const unsigned char avisos_bw[];
 extern const unsigned char avisos_red[];
@@ -93,7 +94,7 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[])
 void drawPicture(bool portrait, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char picture_bw[], const unsigned char picture_red[]);
 void updateCurrentHour(char classes[][32], int16_t durations[]);
 void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], uint16_t color);
-void drawClass(char position, char name[], char duration, uint16_t color);
+void drawClass(char position, char name[], char duration, bool currentClass);
 void drawHours(char start);
 void drawClasses(char classes[][32], int16_t durations[], char start);
 void drawQR();

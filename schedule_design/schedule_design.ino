@@ -2,8 +2,10 @@
 
 void setup() {
   // setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule)
-  setupLayout();
+  setupLayout(SIMPLE_LAYOUT, true, false, false);
   //setLines(false);
+
+  Serial.begin(115200);
 
   char classes[NUM_CLASSES][32] = {
     "FM 10 L", "FM 10 L", "SO2 20 T", "SO2 10 T", "", "", "", "DSBM 10 L",
