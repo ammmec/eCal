@@ -41,7 +41,8 @@ enum Layout {
   DEFAULT_LAYOUT,
   VERBOSE_LAYOUT,
   HORIZONTAL_LAYOUT,
-  SIMPLE_LAYOUT
+  SIMPLE_LAYOUT,
+  SPACEY_LAYOUT
 };
 
 // Layout structure
@@ -70,6 +71,8 @@ struct LayoutConfig {
 
   // Rows created to separate different elements
   uint16_t rows[2];
+
+  char name[3];
 };
 
 // Globals

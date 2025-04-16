@@ -36,7 +36,9 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .bottomMargin = 0,
       
         .endClassLine = displayWidth,
-        .startAnnouncementsLine = 0
+        .startAnnouncementsLine = 0,
+
+        .name = "df"
       };
       config.classWidth =  (displayWidth - config.hourLine) - (displayWidth - config.hourLine)%CLASS_BP_WIDTH; // Take all usable space
       config.classHeight = ((displayHeight/2)/config.numClassesDisplayed); // Take half the screen
@@ -54,7 +56,9 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
 
         .numClassesDisplayed = 13,
         
-        .classWidth = (uint16_t)(CLASS_BP_WIDTH*(7.5)) - (uint16_t)(CLASS_BP_WIDTH*(7.5))%CLASS_BP_WIDTH
+        .classWidth = (uint16_t)(CLASS_BP_WIDTH*(7.5)) - (uint16_t)(CLASS_BP_WIDTH*(7.5))%CLASS_BP_WIDTH,
+
+        .name = "vb"
       };
       config.classHeight = (displayHeight/config.numClassesDisplayed);
       config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
@@ -76,12 +80,37 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .numClassesDisplayed = 13,
 
         .endClassLine = displayWidth,
-        .startAnnouncementsLine = 0
+        .startAnnouncementsLine = 0,
+
+        .name = "sm"
       };
       config.classHeight = (displayHeight/config.numClassesDisplayed);
       config.classWidth =  (displayWidth - config.hourLine) - (displayWidth - config.hourLine)%CLASS_BP_WIDTH;
       config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
       config.topMargin = config.bottomMargin + ((displayHeight-config.classHeight*config.numClassesDisplayed) % 2 != 0);
+      break;
+
+      case SPACEY_LAYOUT:
+      config = {
+        .showLines = lines,
+        .showQR = false,
+        .showAnnouncements = false,
+        .showCurrNext = false,
+        .saveEnergy = saveEnergy,
+        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
+
+        .numClassesDisplayed = 13,
+
+        .endClassLine = displayWidth,
+        .startAnnouncementsLine = 0,
+
+        .name = "sp"
+      };
+      config.classHeight = (displayHeight/config.numClassesDisplayed);
+      config.classWidth =  (displayWidth - config.hourLine) - (displayWidth - config.hourLine)%CLASS_BP_WIDTH;
+      config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
+      config.topMargin = config.bottomMargin + ((displayHeight-config.classHeight*config.numClassesDisplayed) % 2 != 0);
+      config.rows[0] = config.classHeight*(uint16_t)((config.numClassesDisplayed+1)/2) + MARGIN*3;
       break;
 
     case HORIZONTAL_LAYOUT:
@@ -99,7 +128,9 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
 
         .numClassesDisplayed = 7,
 
-        .rows = {0, 0}
+        .rows = {0, 0},
+
+        .name = "hz"
       };
       config.classHeight = (displayHeight/config.numClassesDisplayed);
       config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
@@ -492,6 +523,22 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[])
 
   display.setFont(&FreeMonoBold9pt7b);
   display.setTextColor(GxEPD_BLACK);
+  // In the "spacey" layout, if there are no announcements there is no space reserved for it
+  if (strcmp(config.name, "sp") == 0) {
+    if (strcmp(announcements, "") == 0) { // No announcements, no need to write them down
+      config.showAnnouncements = false;
+      config.numClassesDisplayed = 13;
+      config.classHeight = (displayHeight/config.numClassesDisplayed);
+      config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
+      config.topMargin = config.bottomMargin + ((displayHeight-config.classHeight*config.numClassesDisplayed) % 2 != 0);
+    }
+    else {
+      config.showAnnouncements = true;
+      config.numClassesDisplayed = 7;
+      config.bottomMargin = 0;
+      config.topMargin = 0;
+    }
+  }
 
   char startHour;
   if (config.staticSchedule) {
