@@ -2,102 +2,119 @@ import requests
 import icalendar
 from datetime import datetime, timedelta
 from data_secure import CLIENT_ID
-import re
 from os.path import commonprefix
 from collections import defaultdict
 
-FORMAT = "ics"  # ics is easier to treat for calendars
+startHour = 8       # Classes start at 8 in the morning...
+endHour = 21        # ... and end at 21h
 
-# Get today's schedule (start_date <= today < end_date)
-today = datetime.now()  # - timedelta(days=4) # Testing in the weekend
-START = (today-timedelta(days=45)).strftime("%Y-%m-%d")
-END = (today - timedelta(days=44)).strftime("%Y-%m-%d")
+# Get today's date (start_date <= today < end_date)
+def getToday():
+    today = datetime.now()
+    startDate = (today + timedelta(days=9)).strftime("%Y-%m-%d")
+    endDate = (today + timedelta(days=10)).strftime("%Y-%m-%d")
+    return startDate, endDate
 
-# API URL with the necessary additions
-url = f"https://api.fib.upc.edu/v2/aules/?client_id={CLIENT_ID}&format=json"
+# API call to get list of classrooms
+def getClassrooms():
+    url = f"https://api.fib.upc.edu/v2/aules/?client_id={CLIENT_ID}&format=json"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json().get("results", [])
+    else:
+        print(f"Error fetching classrooms: {response.status_code} - {response.text}")
+        return []
 
-response = requests.get(url)  # Obtain the classroom list from API
+# Extract the schedule of one classroom
+def getSchedule(url):
+    response = requests.get(url)
+    if response.status_code == 200:
+        return icalendar.Calendar.from_ical(response.text)
+    else:
+        print(f"Error fetching schedule: {response.status_code} - {response.text}")
+        return None
 
-def combine_similar_strings(strings):
+# Obtain list of scheduled classes in that classroom in that day
+def extractEvents(calendar):
+    classList = []
+    for event in calendar.walk("VEVENT"):
+        start = int(event.get("DTSTART").dt.strftime("%#H")) # Get start time 
+        end = int((event.get("DTEND").dt + timedelta(minutes=1)).strftime("%#H")) # Get end time
+        name = str(event.get("DESCRIPTION")) if event.get("DESCRIPTION") else str(event.get("SUMMARY")) # Get name of subject
+        classList.append((name, start, end))
+    return classList
+
+# Combine names of classes if two are happening at the same time
+# this is useful for cases where two different majors have the same class, so they have the same name except for the major
+# also useful in case the classroom is shared by different groups doing the same subject
+def combineStrings(strings):
     if not strings:
         return ""
-    
-    # If all strings are the same, return the first
     if all(s == strings[0] for s in strings):
         return strings[0]
 
-    # Step 1: Get common prefix
     prefix = commonprefix(strings)
+    reversedStrings = [s[::-1] for s in strings]
+    suffix = commonprefix(reversedStrings)[::-1]
+    variableParts = [s[len(prefix):len(s) - len(suffix)] for s in strings]
+    joined = "/".join(sorted(set(part.strip() for part in variableParts)))
 
-    # Step 2: Get common suffix (reverse and use commonprefix)
-    reversed_strings = [s[::-1] for s in strings]
-    suffix = commonprefix(reversed_strings)[::-1]
-
-    # Step 3: Extract variable parts
-    variable_parts = [s[len(prefix):len(s)-len(suffix)] for s in strings]
-
-    # Step 4: Join and clean
-    joined = "/".join(sorted(set(part.strip() for part in variable_parts)))
-
-    # Step 5: Return the result
     return f"{prefix}{joined}{suffix}"
 
-def expand_to_hour_slots(classes, start_hour=8, end_hour=20):
-    total_slots = end_hour - start_hour + 1
-    class_names = [""] * total_slots
-    durations = [0] * total_slots
+# Format classes to send to ESP32
+def formatClasses(classList, start=startHour, end=endHour):
+    grouped = defaultdict(list)
+    for name, classStart, classEnd in classList:
+        grouped[(classStart, classEnd)].append(name)
 
-    for name, start, end in classes:
-        duration = end - start
+    merged = []
+    for (classStart, classEnd), names in grouped.items():
+        mergedName = combineStrings(names)
+        merged.append((mergedName, classStart, classEnd))
+
+    mergedClasses = sorted(merged, key=lambda x: x[1])
+
+    totalSlots = end - start + 1
+    classNames = [""] * totalSlots
+    durations = [0] * totalSlots
+
+    for name, classStart, classEnd in mergedClasses:
+        duration = classEnd - classStart
         for i in range(duration):
-            index = start - start_hour + i
-            if 0 <= index < total_slots:
-                class_names[index] = name
+            index = classStart - start + i
+            if 0 <= index < totalSlots:
+                classNames[index] = name
                 durations[index] = duration if i == 0 else -i
-        # Mark the end with 0 if within bounds
-        end_index = end - start_hour
-        if 0 <= end_index < total_slots:
-            durations[end_index] = 0
+        endIndex = classEnd - start
+        if 0 <= endIndex < totalSlots:
+            durations[endIndex] = 0
 
-    return class_names, durations
+    return classNames, durations
 
-if response.status_code == 200:
-    classrooms = response.json().get("results")
-    for room in classrooms:  # Parse classrooms
-        # Specific classroom schedule
-        url = room.get('reserves').replace('json', FORMAT) + f"&client_id={CLIENT_ID}&data_inici={START}&data_fi={END}"
-        response = requests.get(url)  # Obtain the schedule from API
+# Obtain class information
+def processClassroomSchedule(room, startDate, endDate):
+    scheduleUrl = (
+        room.get("reserves")       # Get classroom url
+        .replace("json", "ics")    # Change requested format to iCal
+        + f"&client_id={CLIENT_ID}&data_inici={startDate}&data_fi={endDate}"
+    )
 
-        if response.status_code == 200:
-            calendar = icalendar.Calendar.from_ical(response.text)
-            classes = []
+    calendar = getSchedule(scheduleUrl)
+    if not calendar:
+        return
 
-            # Extract classes
-            for event in calendar.walk("VEVENT"):
-                start_time = int(event.get("DTSTART").dt.strftime("%#H"))  # Get start time
-                end_time = int((event.get("DTEND").dt + timedelta(minutes=1)).strftime("%#H"))  # Round end time
-                name = str(event.get("DESCRIPTION")) if event.get("DESCRIPTION") is not None else str(event.get("SUMMARY"))
+    events = extractEvents(calendar)
+    slots = formatClasses(events, start=startHour, end=endHour)
 
-                classes.append((name, start_time, end_time))
+    print(room.get("id"))
+    print(slots)
 
-            # Merge classes with same time window
-            grouped = defaultdict(list)
-            for name, start, end in classes:
-                grouped[(start, end)].append(name)
+def main():
+    startDate, endDate = getToday()
+    classrooms = getClassrooms()
 
-            merged_classes = []
-            for (start, end), names in grouped.items():
-                merged_name = combine_similar_strings(names)
-                merged_classes.append((merged_name, start, end))
+    for room in classrooms:
+        processClassroomSchedule(room, startDate, endDate)
 
-            classes = sorted(merged_classes, key=lambda x: x[1])  # Sort by start time
-            
-            print(room.get('id'))
-            print(expand_to_hour_slots(classes, start_hour=8, end_hour=21))
-            print(classes)
-
-        else:
-            print(f"Error {response.status_code}: {response.text}")
-
-else:
-    print(f"Error {response.status_code}: {response.text}")
+if __name__ == "__main__":
+    main()
