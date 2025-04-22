@@ -25,6 +25,9 @@ void setupMQTT() {
       if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
           Serial.println("Public EMQX MQTT broker connected");
       } else {
+          if (WiFi.status() != WL_CONNECTED) {
+            if (!connectWiFi()) return;
+          }
           Serial.print("failed with state ");
           Serial.print(client.state());
           delay(2000);
@@ -50,23 +53,19 @@ void callbackSchedule(char *topic, byte *payload, unsigned int length) {
   Serial.println(topic);
   gotUpdate = true;
 
+  // Initialize durations to 0
+  for (int i = 0; i < NUM_CLASSES; ++i) {
+    durations[i] = 0;
+  }
+
   if (payload[0]==0x00) { // No classes are scheduled for that day, stop waiting for an update
-    client.unsubscribe(topics[SCHEDULE][0]); // Unsubscribe from the topic
     // no classes, duration = 0
-    for (int i = 0; i < NUM_CLASSES; ++i) {
-      durations[i] = 0;
-    }
     Serial.println("No classes today");
+    client.unsubscribe(topics[SCHEDULE][0]); // Unsubscribe from the topic
     return;
   }
 
   // Got a schedule, fill classes and durations array
-
-  // Initialize durations to 0
-  for (int i = 0; i < NUM_CLASSES; ++i) {
-      durations[i] = 0;
-  }
-
   unsigned int i = 0;
   while (i < length) {
     Serial.print("Start: ");
@@ -74,11 +73,11 @@ void callbackSchedule(char *topic, byte *payload, unsigned int length) {
     uint8_t pos = (uint8_t)payload[i]>>4;
 
     Serial.print(" Duration: ");
-    uint8_t duration = (uint8_t)payload[i++]&0x0F;
+    uint16_t duration = (uint16_t)payload[i++]&0x0F;
     Serial.print(duration);
-    durations[pos] = duration--;
-    for (int j = pos+1; j < pos+duration; ++j) {
-      durations[j] = -(duration--);
+    durations[pos] = duration;
+    for (int j = pos+1; j <= pos+duration; ++j) {
+      durations[j] = -(--duration);
     }
 
     Serial.print(" Length name: ");
@@ -96,4 +95,5 @@ void callbackSchedule(char *topic, byte *payload, unsigned int length) {
     Serial.println();
   }
   Serial.println("-----------------------");
+  client.unsubscribe(topics[SCHEDULE][0]); // Unsubscribe from the topic
 }

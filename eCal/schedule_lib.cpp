@@ -15,6 +15,30 @@ char prevClasses[NUM_CLASSES][32];
 int16_t prevDurations[NUM_CLASSES];
 char prevStartHour;
 
+bool updatedInfo = true;
+
+bool connectWiFi() {
+  WiFi.begin(ssid, password);
+  unsigned int startAttempt = millis();
+  while (WiFi.status() != WL_CONNECTED && millis()-startAttempt < 7000) { // Try to connect for 7 seconds. If it fails, put a WiFi error message
+    Serial.print(".");
+    delay(500);
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+    updatedInfo = false;
+    return false;
+  }
+  else updatedInfo = true;
+  Serial.println("\nWiFi connected.");
+  return true;
+}
+
+void disconnectWiFi() {
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
+  Serial.println("Wifi disconnected.");
+}
+
 // Must be called before drawing schedule for the first time. Sets up the indicated schedule
 void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule) {
   display.setRotation(layout == HORIZONTAL_LAYOUT ? 0 : 1);
@@ -52,7 +76,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showAnnouncements = false,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
-        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
+        .staticSchedule = false, // Avoids a bug if it is true
 
         .numClassesDisplayed = 13,
 
@@ -74,7 +98,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showAnnouncements = false,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
-        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
+        .staticSchedule = false,
 
         .numClassesDisplayed = 13,
 
@@ -97,7 +121,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showAnnouncements = true,
         .showCurrNext = true,
         .saveEnergy = false, // It has to update the "current" and "next" class, can't be energy efficient
-        .staticSchedule = saveEnergy || staticSchedule,
+        .staticSchedule = false,
 
         .numClassesDisplayed = 13,
         
@@ -297,6 +321,13 @@ void drawQR() {
   display.print(text);
 }
 
+// Draws a sign saying it was not possible to connect to WiFi
+void drawNoWiFi() {
+  uint16_t x = displayWidth - 50 - MARGIN;
+  uint16_t y = displayHeight - 50 - MARGIN;
+  display.drawBitmap(x, y, noWifi, 50, 50, GxEPD_RED, GxEPD_WHITE);
+}
+
 // Writes the current and the next scheduled class of the day
 void drawCurrentNextClass(char classes[][32], int16_t durations[]) {
   char currClass[64];
@@ -314,7 +345,7 @@ void drawCurrentNextClass(char classes[][32], int16_t durations[]) {
   display.setCursor(x, y);
   display.setFont(&FreeMono9pt7b);
 
-  if (curr_class_pos >= 0) {
+  if (curr_class_pos != 0xFF) {
     snprintf(currClass, sizeof(currClass), classes[curr_class_pos]);
     y += CHAR_HEIGHT+MARGIN*2;
     display.print(currClass);
@@ -326,26 +357,25 @@ void drawCurrentNextClass(char classes[][32], int16_t durations[]) {
   }
   else {
     display.print("-");
-    y += (CHAR_HEIGHT+MARGIN*2)*3;
+    y += (CHAR_HEIGHT+MARGIN*2)*4;
   }
 
   // Look for next class
   // If there is a class happening, skip to the end of it. Otherwise, start from the current hour
-  char i = curr_class_pos >= 0 ? curr_class_pos + durations[curr_class_pos] : currentHour-START_HOUR;
+  char i = curr_class_pos != 0xFF ? curr_class_pos + durations[curr_class_pos] : currentHour-START_HOUR;
   while (i < config.numClassesDisplayed) {
-    if (durations[i] != 0 && strcmp(classes[i], currClass) != 0) {
+    if (durations[i] != 0) {
       snprintf(nextClass, sizeof(nextClass), classes[i]);
       ind_next_start = i;
       i = config.numClassesDisplayed;
     }
     ++i;
   }
+  display.setCursor(x, y);
   if (i == config.numClassesDisplayed) {
-    display.setCursor(x, y);
     display.print("-");
   }
   else {
-    display.setCursor(x, y);
     y += CHAR_HEIGHT+MARGIN*2;
     display.print(nextClass);
     display.setCursor(x, y);
@@ -455,32 +485,22 @@ void drawAnnouncements(char announcement[]) {
 // Auxiliary function that gets the current hour from the internet
 void updateCurrentHour(char classes[][32], int16_t durations[]) {
   // Get current time (to tell what class is next)
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  unsigned long startAttempt = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - startAttempt < 5000)) {
-    delay(500);
-  }
-  Serial.println("WiFi connected.");
+  connectWiFi();
   
   // Init and get the time
   configTime(3600, 3600, "pool.ntp.org");
 
   struct tm timeinfo;
-  if (getLocalTime(&timeinfo)) {
-    currentHour = timeinfo.tm_hour;
-    uint16_t minute = timeinfo.tm_min;
+  uint8_t attempts = 0;
 
-    if (minute >= 50) {
-      currentHour = (currentHour + 1) % 24; // Wrap around to 0 if it's 23:50+
-    }
-  } else {
-    Serial.println("Failed to get time");
+  while (!getLocalTime(&timeinfo) && (attempts++)<3);
+  currentHour = attempts < 3 ? timeinfo.tm_hour : currentHour+1;
+  uint16_t minute = timeinfo.tm_min;
+  if (minute >= 50) {
+    currentHour = (currentHour + 1) % 24; // Wrap around to 0 if it's 23:50+
   }
-  
   //disconnect WiFi as it's no longer needed
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
+  disconnectWiFi();
 
   currentHour = constrain(currentHour, START_HOUR, LAST_HOUR);
 
@@ -511,17 +531,7 @@ bool isScheduleChanged(char classes[][32], int16_t durations[], char announcemen
 void drawSchedule(char classes[][32], int16_t durations[], char announcements[]) {
   updateCurrentHour(classes, durations);
 
-  pinMode(PWR, OUTPUT);
-  digitalWrite(PWR, HIGH);
-  display.init(115200, true, 2, false); // For Waveshare with "clever" reset circuit
-
-  display.firstPage();
-  display.setFullWindow();
-
-
-  display.setFont(&FreeMonoBold9pt7b);
-  display.setTextColor(GxEPD_BLACK);
-  // In the "spacey" layout, if there are no announcements there is no space reserved for it
+  // In the "simple" layout, if there are no announcements there is no space reserved for it
   if (strcmp(config.name, "sp") == 0) {
     if (strcmp(announcements, "") == 0) { // No announcements, no need to write them down
       config.showAnnouncements = false;
@@ -556,6 +566,17 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[])
     prevDurations[i] = durations[i];
   }
 
+  pinMode(PWR, OUTPUT);
+  digitalWrite(PWR, HIGH);
+  display.init(115200, true, 2, false); // For Waveshare with "clever" reset circuit
+
+  display.firstPage();
+  display.setFullWindow();
+
+
+  display.setFont(&FreeMonoBold9pt7b);
+  display.setTextColor(GxEPD_BLACK);
+
   do {
     display.fillScreen(GxEPD_WHITE);
 
@@ -563,8 +584,9 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[])
     drawClasses(classes, durations, startHour);
     
     if (config.showCurrNext) drawCurrentNextClass(classes, durations); // TODO: change number to "hour"
-    if(config.showAnnouncements) drawAnnouncements(announcements);
+    if (config.showAnnouncements) drawAnnouncements(announcements);
     if (config.showQR) drawQR();
+    if (!updatedInfo) drawNoWiFi();
     
   } while (display.nextPage());
 

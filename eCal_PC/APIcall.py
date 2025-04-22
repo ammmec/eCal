@@ -42,8 +42,8 @@ def publish(client, msg, topic):
 # Get today's date (start_date <= today < end_date)
 def getToday():
     today = datetime.now()
-    startDate = (today + timedelta(days=2)).strftime("%Y-%m-%d")
-    endDate = (today + timedelta(days=3)).strftime("%Y-%m-%d")
+    startDate = today.strftime("%Y-%m-%d")
+    endDate = (today + timedelta(days=1)).strftime("%Y-%m-%d")
     return startDate, endDate
 
 # API call to get list of classrooms
@@ -114,6 +114,7 @@ def formatClasses(classList, start=startHour, end=endHour):
         name_bytes = c[0].encode("utf-8")  # full string to bytes
         payload.append(len(name_bytes))    # Put length of classname for parsing (1B)
         payload.extend(name_bytes)         # name itself
+    if (len(payload)==0): payload = b'\x00'
     return payload
 
 # Obtain class information
@@ -142,11 +143,8 @@ def main():
         id = room.get('id')
         topic = "schedule/"+id[0:2]+"/"+id[2]+"/"+id
         if (room.get('id') == "A6001"):
-            print(topic)
             payload = processClassroomSchedule(room, startDate, endDate)
-            print(payload)
-            # publish(client, b'\x00', "schedule/A6/0/A6001")
-            publish(client, payload, "schedule/A6/0/A6001")
+            publish(client, payload, topic)
 
     client.loop_stop()
 

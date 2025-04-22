@@ -100,6 +100,8 @@ extern const unsigned char avisos_bw[];
 extern const unsigned char avisos_red[];
 
 // Function declarations
+bool connectWiFi();
+void disconnectWiFi();
 void setupLayout(Layout l = DEFAULT_LAYOUT, bool lines = true, bool saveEnergy = false, bool staticSchedule = false);
 void setLines(bool lines);
 void setNumClassesDisplayed(char nClasses);
@@ -112,6 +114,7 @@ void drawClass(char position, char name[], char duration, bool currentClass);
 void drawHours(char start);
 void drawClasses(char classes[][32], int16_t durations[], char start);
 void drawQR();
+void drawNoWiFi();
 void drawCurrentNextClass(char classes[][32], int16_t durations[]);
 void drawAnnouncements(char announcement[]);
 void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCharsPerLine);
