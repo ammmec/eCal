@@ -45,6 +45,51 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
       config.rows[0] = config.classHeight*config.numClassesDisplayed + MARGIN*3;
       break;
 
+    case MINIMALIST_LAYOUT:
+      config = {
+        .showLines = lines,
+        .showQR = false,
+        .showAnnouncements = false,
+        .showCurrNext = false,
+        .saveEnergy = saveEnergy,
+        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
+
+        .numClassesDisplayed = 13,
+
+        .endClassLine = displayWidth,
+        .startAnnouncementsLine = 0,
+
+        .name = "mn"
+      };
+      config.classHeight = (displayHeight/config.numClassesDisplayed);
+      config.classWidth =  (displayWidth - config.hourLine) - (displayWidth - config.hourLine)%CLASS_BP_WIDTH;
+      config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
+      config.topMargin = config.bottomMargin + ((displayHeight-config.classHeight*config.numClassesDisplayed) % 2 != 0);
+      break;
+
+    case SIMPLE_LAYOUT:
+      config = {
+        .showLines = lines,
+        .showQR = false,
+        .showAnnouncements = false,
+        .showCurrNext = false,
+        .saveEnergy = saveEnergy,
+        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
+
+        .numClassesDisplayed = 13,
+
+        .endClassLine = displayWidth,
+        .startAnnouncementsLine = 0,
+
+        .name = "sp"
+      };
+      config.classHeight = (displayHeight/config.numClassesDisplayed);
+      config.classWidth =  (displayWidth - config.hourLine) - (displayWidth - config.hourLine)%CLASS_BP_WIDTH;
+      config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
+      config.topMargin = config.bottomMargin + ((displayHeight-config.classHeight*config.numClassesDisplayed) % 2 != 0);
+      config.rows[0] = config.classHeight*(uint16_t)((config.numClassesDisplayed+1)/2) + MARGIN*3;
+      break;
+
     case VERBOSE_LAYOUT:
       config = {
         .showLines = lines,
@@ -66,51 +111,6 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
       config.endClassLine = config.startAnnouncementsLine = config.hourLine+config.classWidth+MARGIN*2;
       config.rows[0] = (CHAR_HEIGHT+MARGIN*2)*7;
       config.rows[1] = displayHeight - (QR_SIZE + (CHAR_HEIGHT + MARGIN)*2);
-      break;
-
-    case SIMPLE_LAYOUT:
-      config = {
-        .showLines = lines,
-        .showQR = false,
-        .showAnnouncements = false,
-        .showCurrNext = false,
-        .saveEnergy = saveEnergy,
-        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
-
-        .numClassesDisplayed = 13,
-
-        .endClassLine = displayWidth,
-        .startAnnouncementsLine = 0,
-
-        .name = "sm"
-      };
-      config.classHeight = (displayHeight/config.numClassesDisplayed);
-      config.classWidth =  (displayWidth - config.hourLine) - (displayWidth - config.hourLine)%CLASS_BP_WIDTH;
-      config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
-      config.topMargin = config.bottomMargin + ((displayHeight-config.classHeight*config.numClassesDisplayed) % 2 != 0);
-      break;
-
-      case SPACEY_LAYOUT:
-      config = {
-        .showLines = lines,
-        .showQR = false,
-        .showAnnouncements = false,
-        .showCurrNext = false,
-        .saveEnergy = saveEnergy,
-        .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
-
-        .numClassesDisplayed = 13,
-
-        .endClassLine = displayWidth,
-        .startAnnouncementsLine = 0,
-
-        .name = "sp"
-      };
-      config.classHeight = (displayHeight/config.numClassesDisplayed);
-      config.classWidth =  (displayWidth - config.hourLine) - (displayWidth - config.hourLine)%CLASS_BP_WIDTH;
-      config.bottomMargin = (displayHeight-(config.classHeight*config.numClassesDisplayed))/2;
-      config.topMargin = config.bottomMargin + ((displayHeight-config.classHeight*config.numClassesDisplayed) % 2 != 0);
-      config.rows[0] = config.classHeight*(uint16_t)((config.numClassesDisplayed+1)/2) + MARGIN*3;
       break;
 
     case HORIZONTAL_LAYOUT:
@@ -329,7 +329,9 @@ void drawCurrentNextClass(char classes[][32], int16_t durations[]) {
     y += (CHAR_HEIGHT+MARGIN*2)*3;
   }
 
-  char i = curr_class_pos >= 0 ? curr_class_pos + durations[curr_class_pos] : config.numClassesDisplayed;
+  // Look for next class
+  // If there is a class happening, skip to the end of it. Otherwise, start from the current hour
+  char i = curr_class_pos >= 0 ? curr_class_pos + durations[curr_class_pos] : currentHour-START_HOUR;
   while (i < config.numClassesDisplayed) {
     if (durations[i] != 0 && strcmp(classes[i], currClass) != 0) {
       snprintf(nextClass, sizeof(nextClass), classes[i]);
@@ -454,15 +456,11 @@ void drawAnnouncements(char announcement[]) {
 void updateCurrentHour(char classes[][32], int16_t durations[]) {
   // Get current time (to tell what class is next)
   // Connect to Wi-Fi
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
   WiFi.begin(ssid, password);
   unsigned long startAttempt = millis();
-  while (WiFi.status() != WL_CONNECTED) {
-    if (millis() - startAttempt > 5000) return;
+  while (WiFi.status() != WL_CONNECTED && (millis() - startAttempt < 5000)) {
     delay(500);
   }
-  Serial.println("");
   Serial.println("WiFi connected.");
   
   // Init and get the time
@@ -487,11 +485,11 @@ void updateCurrentHour(char classes[][32], int16_t durations[]) {
   currentHour = constrain(currentHour, START_HOUR, LAST_HOUR);
 
   curr_class_pos = currentHour-START_HOUR;
-  if (strcmp(classes[curr_class_pos], "") != 0) {
-    while (durations[curr_class_pos]<0) --curr_class_pos;
-  }
-  else {
+  if (durations[curr_class_pos] == 0) { // No class happening at the moment
     curr_class_pos = -1;
+  }
+  else if (durations[curr_class_pos] < 0) {
+    curr_class_pos += durations[curr_class_pos]; // Point to the beginning of the class
   }
 }
 
@@ -502,7 +500,7 @@ bool isScheduleChanged(char classes[][32], int16_t durations[], char announcemen
   }
 
   for (int i = 0; i < NUM_CLASSES; i++) {
-    if (strcmp(prevClasses[i], classes[i]) != 0 || prevDurations[i] != durations[i]) {
+    if (prevDurations[i] != durations[i] || strcmp(prevClasses[i], classes[i]) != 0) {
       return true;
     }
   }

@@ -39,10 +39,11 @@ extern uint16_t displayWidth;
 // Different layouts
 enum Layout {
   DEFAULT_LAYOUT,
+  MINIMALIST_LAYOUT,
+  SIMPLE_LAYOUT,
   VERBOSE_LAYOUT,
   HORIZONTAL_LAYOUT,
-  SIMPLE_LAYOUT,
-  SPACEY_LAYOUT
+  PICTURE_LAYOUT
 };
 
 // Layout structure
@@ -80,6 +81,16 @@ extern LayoutConfig config;
 
 extern uint16_t currentHour;
 extern char curr_class_pos; // Index of current class in class array
+
+extern char announcements[256];
+extern char classes[NUM_CLASSES][32];
+extern int16_t durations[NUM_CLASSES];
+
+// Variables to check if the schedule needs to be refreshed
+extern char prevAnnouncements[256];
+extern char prevClasses[NUM_CLASSES][32];
+extern int16_t prevDurations[NUM_CLASSES];
+extern char prevStartHour;
 
 // Bitmaps
 extern const unsigned char class_bg[];

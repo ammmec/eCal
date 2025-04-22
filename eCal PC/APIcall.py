@@ -1,18 +1,49 @@
 import requests
 import icalendar
 from datetime import datetime, timedelta
-from data_secure import CLIENT_ID
+from data_secure import CLIENT_ID, username, password, broker, port
 from os.path import commonprefix
 from collections import defaultdict
+from paho.mqtt import client as mqtt_client
+import random
+import ssl
 
 startHour = 8       # Classes start at 8 in the morning...
 endHour = 21        # ... and end at 21h
 
+# Connect to MQTT
+def connectMQTT():
+    def on_connect(client, userdata, flags, rc):
+        if rc == 0:
+            print("Connected to MQTT Broker!")
+        else:
+            print("Failed to connect, return code %d\n", rc)
+
+    #client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION2, client_id)
+    # Generate a Client ID with the publish prefix.
+    client_id = f'publish-{random.randint(0, 1000)}'
+    client = mqtt_client.Client(client_id)
+    client.username_pw_set(username, password)
+    client.tls_set("emqxsl-ca.crt", cert_reqs=ssl.CERT_REQUIRED)
+    client.on_connect = on_connect
+    client.connect(broker, port)
+    return client
+
+
+def publish(client, msg, topic):
+    result = client.publish(topic, msg, retain=True)
+    # result: [0, 1]
+    status = result[0]
+    if status == 0:
+        print(f"Sent `{msg}` to topic `{topic}`")
+    else:
+        print(f"Failed to send message to topic {topic}")    
+
 # Get today's date (start_date <= today < end_date)
 def getToday():
     today = datetime.now()
-    startDate = (today + timedelta(days=9)).strftime("%Y-%m-%d")
-    endDate = (today + timedelta(days=10)).strftime("%Y-%m-%d")
+    startDate = (today + timedelta(days=2)).strftime("%Y-%m-%d")
+    endDate = (today + timedelta(days=3)).strftime("%Y-%m-%d")
     return startDate, endDate
 
 # API call to get list of classrooms
@@ -73,23 +104,17 @@ def formatClasses(classList, start=startHour, end=endHour):
         merged.append((mergedName, classStart, classEnd))
 
     mergedClasses = sorted(merged, key=lambda x: x[1])
+            
+    payload = bytearray()
 
-    totalSlots = end - start + 1
-    classNames = [""] * totalSlots
-    durations = [0] * totalSlots
-
-    for name, classStart, classEnd in mergedClasses:
-        duration = classEnd - classStart
-        for i in range(duration):
-            index = classStart - start + i
-            if 0 <= index < totalSlots:
-                classNames[index] = name
-                durations[index] = duration if i == 0 else -i
-        endIndex = classEnd - start
-        if 0 <= endIndex < totalSlots:
-            durations[endIndex] = 0
-
-    return classNames, durations
+    for c in mergedClasses:
+        start = ((c[1]-startHour)&0x0F)
+        duration = (c[2]-c[1])&0x0F
+        payload.append((int)(start<<4 | duration)) # append class start-start hour and duration of class (4b and 4b)
+        name_bytes = c[0].encode("utf-8")  # full string to bytes
+        payload.append(len(name_bytes))    # Put length of classname for parsing (1B)
+        payload.extend(name_bytes)         # name itself
+    return payload
 
 # Obtain class information
 def processClassroomSchedule(room, startDate, endDate):
@@ -104,17 +129,26 @@ def processClassroomSchedule(room, startDate, endDate):
         return
 
     events = extractEvents(calendar)
-    slots = formatClasses(events, start=startHour, end=endHour)
-
-    print(room.get("id"))
-    print(slots)
+    print(events)
+    return formatClasses(events, start=startHour, end=endHour)
 
 def main():
     startDate, endDate = getToday()
     classrooms = getClassrooms()
+    client = connectMQTT()
+    client.loop_start()
 
     for room in classrooms:
-        processClassroomSchedule(room, startDate, endDate)
+        id = room.get('id')
+        topic = "schedule/"+id[0:2]+"/"+id[2]+"/"+id
+        if (room.get('id') == "A6001"):
+            print(topic)
+            payload = processClassroomSchedule(room, startDate, endDate)
+            print(payload)
+            # publish(client, b'\x00', "schedule/A6/0/A6001")
+            publish(client, payload, "schedule/A6/0/A6001")
+
+    client.loop_stop()
 
 if __name__ == "__main__":
     main()
