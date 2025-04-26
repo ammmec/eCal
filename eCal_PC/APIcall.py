@@ -141,7 +141,7 @@ def main():
 
     for room in classrooms:
         id = room.get('id')
-        topic = "schedule/"+id[0:2]+"/"+id[2]+"/"+id
+        topic = "schedule/"+id
         if (room.get('id') == "A6001"):
             payload = processClassroomSchedule(room, startDate, endDate)
             publish(client, payload, topic)

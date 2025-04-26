@@ -16,8 +16,8 @@ extern const char *topics[4][4];
 enum Messages {
   SCHEDULE,
   CHANGES,
+  ANNOUNCEMENTS,
   CONFIG,
-  ANNOUNCEMENTS
 };
 
 void setupMQTT();

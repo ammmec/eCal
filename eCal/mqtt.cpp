@@ -1,13 +1,14 @@
 #include "mqtt.h"
+#define DEBUG true
 
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
 const char* topics[4][4] = {
-  {"schedule/A6/0/A6001", "schedule/A6/0", "schedule/A6", "schedule"},
-  {"changes/A6/0/A6001",  "changes/A6/0",  "changes/A6",  "changes"},
-  {"config/A6/0/A6001",   "config/A6/0",   "config/A6",   "config"},
-  {"ann/A6/0/A6001",      "ann/A6/0",      "ann/A6",      "ann"}
+  {"schedule/A6001",      "", "", ""},
+  {"changes/A6001",       "",  "",  ""},
+  {"announcements/A6001", "",  "",  ""},
+  {"config/A6/0/A6001",   "config/A6/0",   "config/A6",   "config"}
 };
 
 bool gotUpdate;
@@ -49,51 +50,52 @@ void getSchedule(char classes[][32], int16_t durations[]) {
 }
 
 void callbackSchedule(char *topic, byte *payload, unsigned int length) {
+  #ifdef DEBUG
   Serial.print("Message arrived in topic: ");
   Serial.println(topic);
-  gotUpdate = true;
+  #endif
+  gotUpdate = true; // Indicates schedule was able to be updated
 
   // Initialize durations to 0
-  for (int i = 0; i < NUM_CLASSES; ++i) {
-    durations[i] = 0;
-  }
+  for (int i = 0; i < NUM_CLASSES; ++i) durations[i] = 0;
 
-  if (payload[0]==0x00) { // No classes are scheduled for that day, stop waiting for an update
-    // no classes, duration = 0
+  if (payload[0]==0x00) { // No classes are scheduled for that day, return
+    #ifdef DEBUG
     Serial.println("No classes today");
+    #endif
     client.unsubscribe(topics[SCHEDULE][0]); // Unsubscribe from the topic
     return;
   }
 
   // Got a schedule, fill classes and durations array
   unsigned int i = 0;
-  while (i < length) {
+  while (i < length) { // Parse the whole sent message
+    uint8_t pos = (uint8_t)payload[i]>>4; // Start position (hour-8)
+    uint16_t duration = (uint16_t)payload[i++]&0x0F; // Duration in hours
+
+    // Format duration array
+    durations[pos] = duration;
+    for (int j = pos+duration-1; j > pos; --j) durations[j] = -(--duration);
+
+    // Parse name of the subject
+    unsigned int nameEnd = (int)payload[i++]+i;
+    uint8_t k = 0;
+    for (i = i; i < nameEnd; i++) {
+      classes[pos][k++] = (char)payload[i];
+    }
+    #ifdef DEBUG
     Serial.print("Start: ");
     Serial.print((uint8_t)payload[i]>>4);
-    uint8_t pos = (uint8_t)payload[i]>>4;
-
     Serial.print(" Duration: ");
-    uint16_t duration = (uint16_t)payload[i++]&0x0F;
     Serial.print(duration);
-    durations[pos] = duration;
-    for (int j = pos+1; j <= pos+duration; ++j) {
-      durations[j] = -(--duration);
-    }
-
     Serial.print(" Length name: ");
-    unsigned int nameEnd = (int)payload[i++]+i;
     Serial.print(nameEnd-i-1);
-
     Serial.print(" Name: ");
-    uint8_t k = 0;
-    for (int j = i; j < nameEnd; j++) {
-      Serial.print((char) payload[j]);
-      classes[pos][k++] = (char)payload[j];
-      i = j;
-    }
-    ++i;
-    Serial.println();
+    Serial.println(classes[pos]);
+    #endif
   }
+  #ifdef DEBUG
   Serial.println("-----------------------");
+  #endif
   client.unsubscribe(topics[SCHEDULE][0]); // Unsubscribe from the topic
 }
