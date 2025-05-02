@@ -13,6 +13,7 @@ char curr_class_pos;
 char prevAnnouncements[256];
 char prevClasses[NUM_CLASSES][32];
 int16_t prevDurations[NUM_CLASSES];
+change_t prevChanged[NUM_CLASSES];
 char prevStartHour;
 
 bool updatedInfo = true;
@@ -184,16 +185,28 @@ void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], ui
   }
 }
 
+void drawRectangle(uint16_t h, uint16_t x, uint16_t y, uint16_t color, const unsigned char bg[]) {
+  // Draw dotted background in bitmap
+  for (int i = 0; i < config.classWidth; i += CLASS_BP_WIDTH) { // Repeat for as many times as needed for intended width
+    for (int j = 0; j < h; j += CLASS_BP_HEIGHT) {
+      display.drawBitmap(x+i, y+j, bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT, color, GxEPD_WHITE);
+    }
+  }
+}
+
 /* Draws a class of the schedule. The height of the rectangle increases with the duration
-    position  <- [0, 12], which "timeslot" it is in
-    name      <- name of the class
-    duration  <- how many hours the class lasts
-    color     <- color of the class (red if it is the active one)
+    position      <- [0, 12], which "timeslot" it is in
+    name          <- name of the class
+    duration      <- how many hours the class lasts
+    currentClass  <- if it is the class curently taking place
+    changedStatus <- how the class is modified. Will be displayed in red if there are any changes
 */
-void drawClass(char position, char name[], char duration, bool currentClass) {
+void drawClass(char position, char name[], char duration, bool currentClass, change_t changedStatus) {
   uint16_t x = (config.endClassLine - config.hourLine - config.classWidth)/2 + config.hourLine;
   uint16_t h = (config.classHeight * duration - 2*MARGIN) - (config.classHeight * duration - 2*MARGIN)%CLASS_BP_HEIGHT;
   uint16_t y = config.classHeight*position + (config.classHeight*duration)/2 + config.topMargin - h/2;
+
+  uint16_t color = changedStatus ? GxEPD_RED : GxEPD_BLACK; // classes will be painted in red if they have been changed
 
   // Center text
   int16_t tbx, tby;
@@ -205,29 +218,21 @@ void drawClass(char position, char name[], char duration, bool currentClass) {
 
   if(strcmp(name, CLOSED) != 0) { // If the class is closed no need to draw the bitmap
     if (config.saveEnergy || !currentClass) {
-      // Draw dotted background in bitmap
-      for (int i = 0; i < config.classWidth; i += CLASS_BP_WIDTH) { // Repeat for as many times as needed for intended width
-        for (int j = 0; j < h; j += CLASS_BP_HEIGHT) {
-          display.drawBitmap(x+i, y+j, class_bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT, GxEPD_BLACK, GxEPD_WHITE);
-        }
-      }
+      if (changedStatus != CANCELLED) drawRectangle(h, x, y, color, class_bg);
+      else display.fillRect(x, y, config.classWidth, h, GxEPD_WHITE);
       // Border
-      display.drawRect(x, y, config.classWidth, h, GxEPD_BLACK);
+      display.drawRect(x, y, config.classWidth, h, color);
     }
     else {
       // Border
-      display.fillRect(x-2, y-2, config.classWidth+4, h+4, GxEPD_BLACK); // Thicker border
-      // Draw dotted background in bitmap
-      for (int i = 0; i < config.classWidth; i += CLASS_BP_WIDTH) { // Repeat for as many times as needed for intended width
-        for (int j = 0; j < h; j += CLASS_BP_HEIGHT) {
-          display.drawBitmap(x+i, y+j, current_class_bg, CLASS_BP_WIDTH, CLASS_BP_HEIGHT, GxEPD_BLACK, GxEPD_WHITE);
-        }
-      }
+      display.fillRect(x-2, y-2, config.classWidth+4, h+4, color); // Thicker border
+      if (changedStatus != CANCELLED) drawRectangle(h, x, y, color, current_class_bg);
+      else display.fillRect(x, y, config.classWidth, h, GxEPD_WHITE);
     }
   }
   else {
-    display.writeLine (config.hourLine, config.classHeight*position, config.endClassLine, config.classHeight*(position+1), GxEPD_BLACK);
-    display.writeLine (config.hourLine, config.classHeight*(position+1), config.endClassLine, config.classHeight*position, GxEPD_BLACK);
+    display.writeLine (config.hourLine, config.classHeight*position, config.endClassLine, config.classHeight*(position+1), color);
+    display.writeLine (config.hourLine, config.classHeight*(position+1), config.endClassLine, config.classHeight*position, color);
   }
 
   // White outline
@@ -237,6 +242,8 @@ void drawClass(char position, char name[], char duration, bool currentClass) {
   display.setTextColor(GxEPD_BLACK);
   display.setCursor(tx, ty);
   display.print(name);
+
+  if (changedStatus == CANCELLED) display.drawFastHLine(tx-2, ty-CHAR_HEIGHT/2, tbw+4, GxEPD_BLACK); // "cross over" the name if the class is cancelled
 }
 
 // Draws, on the left of the screen, the hours of the schedule
@@ -277,7 +284,7 @@ void drawHours(char start) {
 
 // Given an array of strings, where the string is the class and the position is the hour it is done in,
 // print each single class in the schedule
-void drawClasses(char classes[][32], int16_t durations[], char start) {
+void drawClasses(char classes[][32], int16_t durations[], char start, change_t changed[], char announcements[]) {
   char i = start - START_HOUR;
 
   char pos = 0; 
@@ -294,7 +301,8 @@ void drawClasses(char classes[][32], int16_t durations[], char start) {
       duration = durations[i]-timePassed;
     }
 
-    drawClass(pos, classes[i], min((int)duration,config.numClassesDisplayed-pos), i == curr_class_pos);
+    //drawClass(char position, char name[], char duration, bool currentClass, change_t changedStatus) {
+    drawClass(pos, classes[i], min((int)duration,config.numClassesDisplayed-pos), i == curr_class_pos, changed[i]);
     i += durations[i];
     pos += duration;
   }
@@ -514,13 +522,13 @@ void updateCurrentHour(char classes[][32], int16_t durations[]) {
 }
 
 // Auxiliary function that returns if the schedule has changed since last time it was drawn
-bool isScheduleChanged(char classes[][32], int16_t durations[], char announcements[], char startHour) {
+bool isScheduleChanged(char classes[][32], int16_t durations[], char announcements[], char startHour, change_t changed[]) {
   if (strcmp(prevAnnouncements, announcements) != 0 || prevStartHour != startHour) {
     return true;
   }
 
   for (int i = 0; i < NUM_CLASSES; i++) {
-    if (prevDurations[i] != durations[i] || strcmp(prevClasses[i], classes[i]) != 0) {
+    if (prevDurations[i] != durations[i] || prevChanged[i] != changed[i] || strcmp(prevClasses[i], classes[i]) != 0) {
       return true;
     }
   }
@@ -528,7 +536,7 @@ bool isScheduleChanged(char classes[][32], int16_t durations[], char announcemen
 }
 
 // Manages the schedule drawing
-void drawSchedule(char classes[][32], int16_t durations[], char announcements[]) {
+void drawSchedule(char classes[][32], int16_t durations[], char announcements[], change_t changed[]) {
   updateCurrentHour(classes, durations);
 
   // In the "simple" layout, if there are no announcements there is no space reserved for it
@@ -557,14 +565,19 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[])
     startHour = min(currentHour, (uint16_t)(LAST_HOUR+1-config.numClassesDisplayed));
   }
 
-  if (config.saveEnergy && !isScheduleChanged(classes, durations, announcements, startHour)) return; // No changes in announcements or in classes, do not have to update at all
+  if (config.saveEnergy && !isScheduleChanged(classes, durations, announcements, startHour, changed)) {
+    Serial.println("No changes made");
+    return; // No changes in announcements or in classes, do not have to update at all
+  }
 
   strncpy(prevAnnouncements, announcements, sizeof(prevAnnouncements));
   prevStartHour = startHour;
   for (int i = 0; i < NUM_CLASSES; i++) {
     strcpy(prevClasses[i], classes[i]);
     prevDurations[i] = durations[i];
+    prevChanged[i] = changed[i];
   }
+
 
   pinMode(PWR, OUTPUT);
   digitalWrite(PWR, HIGH);
@@ -581,7 +594,7 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[])
     display.fillScreen(GxEPD_WHITE);
 
     drawHours(startHour);
-    drawClasses(classes, durations, startHour);
+    drawClasses(classes, durations, startHour, changed, announcements);
     
     if (config.showCurrNext) drawCurrentNextClass(classes, durations); // TODO: change number to "hour"
     if (config.showAnnouncements) drawAnnouncements(announcements);

@@ -46,6 +46,14 @@ enum Layout {
   PICTURE_LAYOUT
 };
 
+// Types of change
+enum change_t {
+  NONE,
+  GENERAL,
+  ADD,
+  CANCELLED
+};
+
 // Layout structure
 struct LayoutConfig {
   bool showLines;
@@ -85,11 +93,13 @@ extern char curr_class_pos; // Index of current class in class array
 extern char announcements[256];
 extern char classes[NUM_CLASSES][32];
 extern int16_t durations[NUM_CLASSES];
+extern change_t changed[NUM_CLASSES];
 
 // Variables to check if the schedule needs to be refreshed
 extern char prevAnnouncements[256];
 extern char prevClasses[NUM_CLASSES][32];
 extern int16_t prevDurations[NUM_CLASSES];
+extern change_t prevChanged[NUM_CLASSES];
 extern char prevStartHour;
 
 // Bitmaps
@@ -105,14 +115,15 @@ void disconnectWiFi();
 void setupLayout(Layout l = DEFAULT_LAYOUT, bool lines = true, bool saveEnergy = false, bool staticSchedule = false);
 void setLines(bool lines);
 void setNumClassesDisplayed(char nClasses);
-bool isScheduleChanged(char classes[][32], int16_t durations[], char announcements[], char startHour);
-void drawSchedule(char classes[][32], int16_t durations[], char announcements[]);
+bool isScheduleChanged(char classes[][32], int16_t durations[], char announcements[], char startHour, change_t changed[]);
+void drawSchedule(char classes[][32], int16_t durations[], char announcements[], change_t changed[]);
 void drawPicture(bool portrait, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char picture_bw[], const unsigned char picture_red[]);
 void updateCurrentHour(char classes[][32], int16_t durations[]);
 void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], uint16_t color);
-void drawClass(char position, char name[], char duration, bool currentClass);
+void drawRectangle(uint16_t h, uint16_t x, uint16_t y, uint16_t color, const unsigned char bg[]);
+void drawClass(char position, char name[], char duration, bool currentClass, change_t changedStatus);
 void drawHours(char start);
-void drawClasses(char classes[][32], int16_t durations[], char start);
+void drawClasses(char classes[][32], int16_t durations[], char start, change_t changed[], char announcements[]);
 void drawQR();
 void drawNoWiFi();
 void drawCurrentNextClass(char classes[][32], int16_t durations[]);

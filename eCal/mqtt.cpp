@@ -49,6 +49,91 @@ void getSchedule(char classes[][32], int16_t durations[]) {
   Serial.println("Got schedule");
 }
 
+void getChanges() {
+  gotUpdate = false;
+  client.setCallback(callbackChanges);
+  // Subscribe to most priority changes topic, others are not used
+  client.subscribe(topics[CHANGES][0]);
+
+  while (!gotUpdate) { // Keep looking for updates until resolved
+    client.loop();
+    delay(500);
+  }
+  Serial.println("Got changes");
+}
+
+void callbackChanges(char *topic, byte *payload, unsigned int length) {
+  #ifdef DEBUG
+  Serial.print("Change arrived in topic: ");
+  Serial.println(topic);
+  for (int i = 0; i < length; ++i) {
+    Serial.print(payload[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println();
+  #endif
+  gotUpdate = true; // Indicates schedule was able to be updated
+
+  if (payload[0]==0x00) { // No changes are made, return
+    #ifdef DEBUG
+    Serial.println("No changes made");
+    #endif
+    client.unsubscribe(topics[CHANGES][0]); // Unsubscribe from the topic
+    return;
+  }
+
+  // Got changes, fill changes array
+  unsigned int i = 0;
+  while (i < length) { // Parse the whole sent message
+    uint8_t pos = (uint8_t)payload[i]>>4; // Start position (hour-8)
+    uint16_t duration = (uint16_t)payload[i++]&0x0F; // Duration in hours
+    bool announce = (uint8_t)payload[i]>>7; // Automatically announcement
+    changed[pos] = static_cast<change_t>((uint8_t)((payload[i++]&0x70)>>4) + 1); // Type of change
+
+    #ifdef DEBUG
+    Serial.print("Start: ");
+    Serial.print((uint8_t)pos);
+    Serial.print(" Duration: ");
+    Serial.print(duration);
+    Serial.print(" Type: ");
+    Serial.print((int)changed[pos]);
+    Serial.print(" Announce: ");
+    Serial.println(announce);
+    #endif
+
+    if (changed[pos]==ADD) { // Addition, make a new class
+      // Format duration array
+      durations[pos] = duration;
+      for (int j = pos+duration-1; j > pos; --j) durations[j] = -(--duration);
+
+      // Parse name of the subject
+      unsigned int nameEnd = (int)payload[i++]+i;
+      uint8_t k = 0;
+      for (i = i; i < nameEnd; i++) {
+        classes[pos][k++] = (char)payload[i];
+      }
+    }
+
+    if (announce) { // Generate automatic announcement
+      // Temporary buffer to format the message
+      char buffer[128];
+
+      if (changed[pos] == GENERAL) {
+        snprintf(buffer, sizeof(buffer), "\n%s s'ha modificat. + info al Raco.\n", classes[pos]);
+      }
+      else if (changed[pos] == ADD) {
+        snprintf(buffer, sizeof(buffer), "\n%s s'ha afegit. + info al Raco.\n", classes[pos]);
+      }
+      else if (changed[pos] == CANCELLED) {
+        snprintf(buffer, sizeof(buffer), "\n%s s'ha cancel.lat. + info al Raco.\n", classes[pos]);
+      }
+      // Concatenate the formatted message to announcements
+      strncat(announcements, buffer, sizeof(announcements) - strlen(announcements) - 1);
+    }
+  }
+  client.unsubscribe(topics[CHANGES][0]); // Unsubscribe from the topic
+}
+
 void callbackSchedule(char *topic, byte *payload, unsigned int length) {
   #ifdef DEBUG
   Serial.print("Message arrived in topic: ");

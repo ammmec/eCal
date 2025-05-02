@@ -22,6 +22,8 @@ enum Messages {
 
 void setupMQTT();
 void getSchedule(char classes[][32], int16_t durations[]);
+void getChanges();
+void callbackChanges(char *topic, byte *payload, unsigned int length);
 void callbackSchedule(char *topic, byte *payload, unsigned int length);
 
 #endif
