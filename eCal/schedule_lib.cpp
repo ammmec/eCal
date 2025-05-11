@@ -7,6 +7,7 @@ uint16_t displayHeight;
 uint16_t displayWidth;
 LayoutConfig config;
 uint16_t currentHour = 8;
+WEEKDAYS weekday = MONDAY; // Assumes it starts on a Monday
 char curr_class_pos;
 
 // Variables to check if the schedule needs to be refreshed
@@ -17,6 +18,7 @@ change_t prevChanged[NUM_CLASSES];
 char prevStartHour;
 
 bool updatedInfo = true;
+RTC_DATA_ATTR bool needRefresh = true;
 
 bool connectWiFi() {
   WiFi.begin(ssid, password);
@@ -25,11 +27,13 @@ bool connectWiFi() {
     Serial.print(".");
     delay(500);
   }
+  Serial.println();
   if (WiFi.status() != WL_CONNECTED) {
     updatedInfo = false;
     return false;
   }
   else updatedInfo = true;
+  updateCurrentHour();
   Serial.println("\nWiFi connected.");
   return true;
 }
@@ -38,6 +42,17 @@ void disconnectWiFi() {
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
   Serial.println("Wifi disconnected.");
+}
+
+void restartData() {
+  needRefresh = true;
+
+  // Initialize durations to 0, no changes and no announcements
+  for (int i = 0; i < NUM_CLASSES; ++i) {
+    durations[i] = 0;
+    changed[i] = NONE;
+  }
+  announcements[0] = '\0';
 }
 
 // Must be called before drawing schedule for the first time. Sets up the indicated schedule
@@ -51,6 +66,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = true,
         .showAnnouncements = true,
+        .announcementSupport = true,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
         .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
@@ -75,6 +91,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = false,
         .showAnnouncements = false,
+        .announcementSupport = false,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
         .staticSchedule = false, // Avoids a bug if it is true
@@ -97,6 +114,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = false,
         .showAnnouncements = false,
+        .announcementSupport = true,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
         .staticSchedule = false,
@@ -120,6 +138,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = true,
         .showAnnouncements = true,
+        .announcementSupport = true,
         .showCurrNext = true,
         .saveEnergy = false, // It has to update the "current" and "next" class, can't be energy efficient
         .staticSchedule = false,
@@ -147,6 +166,7 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = true,
         .showAnnouncements = true,
+        .announcementSupport = true,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
         .staticSchedule = staticSchedule,
@@ -491,10 +511,7 @@ void drawAnnouncements(char announcement[]) {
 }
 
 // Auxiliary function that gets the current hour from the internet
-void updateCurrentHour(char classes[][32], int16_t durations[]) {
-  // Get current time (to tell what class is next)
-  connectWiFi();
-  
+void updateCurrentHour() { 
   // Init and get the time
   configTime(3600, 3600, "pool.ntp.org");
 
@@ -507,11 +524,12 @@ void updateCurrentHour(char classes[][32], int16_t durations[]) {
   if (minute >= 50) {
     currentHour = (currentHour + 1) % 24; // Wrap around to 0 if it's 23:50+
   }
-  //disconnect WiFi as it's no longer needed
-  disconnectWiFi();
+  weekday = WEEKDAYS(timeinfo.tm_wday); // Update which day of the week it is
 
   currentHour = constrain(currentHour, START_HOUR, LAST_HOUR);
+}
 
+void findCurrentPos() {
   curr_class_pos = currentHour-START_HOUR;
   if (durations[curr_class_pos] == 0) { // No class happening at the moment
     curr_class_pos = -1;
@@ -521,23 +539,9 @@ void updateCurrentHour(char classes[][32], int16_t durations[]) {
   }
 }
 
-// Auxiliary function that returns if the schedule has changed since last time it was drawn
-bool isScheduleChanged(char classes[][32], int16_t durations[], char announcements[], char startHour, change_t changed[]) {
-  if (strcmp(prevAnnouncements, announcements) != 0 || prevStartHour != startHour) {
-    return true;
-  }
-
-  for (int i = 0; i < NUM_CLASSES; i++) {
-    if (prevDurations[i] != durations[i] || prevChanged[i] != changed[i] || strcmp(prevClasses[i], classes[i]) != 0) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // Manages the schedule drawing
 void drawSchedule(char classes[][32], int16_t durations[], char announcements[], change_t changed[]) {
-  updateCurrentHour(classes, durations);
+  findCurrentPos();
 
   // In the "simple" layout, if there are no announcements there is no space reserved for it
   if (strcmp(config.name, "sp") == 0) {
@@ -565,18 +569,12 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[],
     startHour = min(currentHour, (uint16_t)(LAST_HOUR+1-config.numClassesDisplayed));
   }
 
-  if (config.saveEnergy && !isScheduleChanged(classes, durations, announcements, startHour, changed)) {
+  if (config.saveEnergy && !needRefresh && prevStartHour == startHour) {
     Serial.println("No changes made");
     return; // No changes in announcements or in classes, do not have to update at all
   }
 
-  strncpy(prevAnnouncements, announcements, sizeof(prevAnnouncements));
   prevStartHour = startHour;
-  for (int i = 0; i < NUM_CLASSES; i++) {
-    strcpy(prevClasses[i], classes[i]);
-    prevDurations[i] = durations[i];
-    prevChanged[i] = changed[i];
-  }
 
 
   pinMode(PWR, OUTPUT);
@@ -605,6 +603,26 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[],
 
   display.powerOff();
   digitalWrite(PWR, LOW);
+}
+
+void clearScreen() {
+  pinMode(PWR, OUTPUT);
+  digitalWrite(PWR, HIGH);
+  display.init(115200, true, 2, false); // For Waveshare with "clever" reset circuit
+
+  display.firstPage();
+  display.setFullWindow();
+
+  do {
+    display.clearScreen();
+  } while (display.nextPage());
+
+  display.powerOff();
+  digitalWrite(PWR, LOW);
+}
+
+bool checkAnnouncements() {
+  return config.announcementSupport;
 }
 
 // Manages the picture printing in the display

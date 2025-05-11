@@ -20,9 +20,10 @@ enum Messages {
   CONFIG,
 };
 
-void setupMQTT();
-void getSchedule(char classes[][32], int16_t durations[]);
-void getChanges();
+bool setupMQTT();
+void disconnectMQTT();
+bool getSchedule(char classes[][32], int16_t durations[]);
+bool getChanges();
 void callbackChanges(char *topic, byte *payload, unsigned int length);
 void callbackSchedule(char *topic, byte *payload, unsigned int length);
 

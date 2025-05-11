@@ -8,6 +8,8 @@
 #include <time.h>
 #include "wifi_secure.h"
 
+#define DEBUG true
+
 // Pin definition
 #define PWR  D11  // 7
 #define BUSY D7   // 18
@@ -54,11 +56,23 @@ enum change_t {
   CANCELLED
 };
 
+// Easily keep track of the days of the week
+enum WEEKDAYS {
+  SUNDAY, // = 0
+  MONDAY,
+  TUESDAY,
+  WEDNESDAY,
+  THURSDAY,
+  FRIDAY,
+  SATURDAY
+};
+
 // Layout structure
 struct LayoutConfig {
   bool showLines;
   bool showQR;
   bool showAnnouncements;
+  bool announcementSupport; // Whether the layout offers schedule support or not
   bool showCurrNext;
   bool saveEnergy; // Schedule will not be refreshed unless it changes (does not show the current class in red)
   bool staticSchedule; // if false, the top of the schedule will be the current class. Otherwise, it has morning and afternoon schedule
@@ -87,20 +101,18 @@ struct LayoutConfig {
 // Globals
 extern LayoutConfig config;
 
-extern uint16_t currentHour;
+RTC_DATA_ATTR extern uint16_t currentHour;
+extern WEEKDAYS weekday;
 extern char curr_class_pos; // Index of current class in class array
 
-extern char announcements[256];
-extern char classes[NUM_CLASSES][32];
-extern int16_t durations[NUM_CLASSES];
-extern change_t changed[NUM_CLASSES];
+RTC_DATA_ATTR extern bool needRefresh;
+RTC_DATA_ATTR extern char announcements[256];
+RTC_DATA_ATTR extern char classes[NUM_CLASSES][32];
+RTC_DATA_ATTR extern int16_t durations[NUM_CLASSES];
+RTC_DATA_ATTR extern change_t changed[NUM_CLASSES];
 
 // Variables to check if the schedule needs to be refreshed
-extern char prevAnnouncements[256];
-extern char prevClasses[NUM_CLASSES][32];
-extern int16_t prevDurations[NUM_CLASSES];
-extern change_t prevChanged[NUM_CLASSES];
-extern char prevStartHour;
+RTC_DATA_ATTR extern char prevStartHour;
 
 // Bitmaps
 extern const unsigned char class_bg[];
@@ -112,13 +124,14 @@ extern const unsigned char avisos_red[];
 // Function declarations
 bool connectWiFi();
 void disconnectWiFi();
+void restartData();
 void setupLayout(Layout l = DEFAULT_LAYOUT, bool lines = true, bool saveEnergy = false, bool staticSchedule = false);
 void setLines(bool lines);
 void setNumClassesDisplayed(char nClasses);
-bool isScheduleChanged(char classes[][32], int16_t durations[], char announcements[], char startHour, change_t changed[]);
 void drawSchedule(char classes[][32], int16_t durations[], char announcements[], change_t changed[]);
 void drawPicture(bool portrait, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char picture_bw[], const unsigned char picture_red[]);
-void updateCurrentHour(char classes[][32], int16_t durations[]);
+void updateCurrentHour();
+void findCurrentPos();
 void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], uint16_t color);
 void drawRectangle(uint16_t h, uint16_t x, uint16_t y, uint16_t color, const unsigned char bg[]);
 void drawClass(char position, char name[], char duration, bool currentClass, change_t changedStatus);
@@ -129,4 +142,6 @@ void drawNoWiFi();
 void drawCurrentNextClass(char classes[][32], int16_t durations[]);
 void drawAnnouncements(char announcement[]);
 void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCharsPerLine);
+bool checkAnnouncements();
+void clearScreen();
 #endif // SCHEDULE_LIB_H

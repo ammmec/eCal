@@ -1,5 +1,4 @@
 #include "mqtt.h"
-#define DEBUG true
 
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
@@ -13,66 +12,70 @@ const char* topics[4][4] = {
 
 bool gotUpdate;
 
-void setupMQTT() {
+bool setupMQTT() {
+  if (WiFi.status() != WL_CONNECTED) return false;
   espClient.setCACert(ca_cert);
   
   //connecting to the mqtt broker
   client.setServer(mqtt_broker, mqtt_port);
   client.setBufferSize(512);
   while (!client.connected()) {
-      String client_id = "esp32-client-";
-      client_id += String(WiFi.macAddress());
-      Serial.printf("The client %s connects to the public MQTT broker\n", client_id.c_str());
-      if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
-          Serial.println("Public EMQX MQTT broker connected");
-      } else {
-          if (WiFi.status() != WL_CONNECTED) {
-            if (!connectWiFi()) return;
-          }
-          Serial.print("failed with state ");
-          Serial.print(client.state());
-          delay(2000);
-      }
+    String client_id = "esp32-client-";
+    client_id += String(WiFi.macAddress());
+    Serial.printf("The client %s connects to the public MQTT broker\n", client_id.c_str());
+    if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
+        Serial.println("Public EMQX MQTT broker connected");
+    } else {
+        if (WiFi.status() != WL_CONNECTED) {
+          if (!connectWiFi()) return false;
+        }
+        Serial.print("failed with state ");
+        Serial.print(client.state());
+        delay(2000);
+    }
   }
+  return true;
 }
 
-void getSchedule(char classes[][32], int16_t durations[]) {
+void disconnectMQTT() {
+  client.disconnect();
+}
+
+bool getSchedule(char classes[][32], int16_t durations[]) {
   gotUpdate = false;
+  if (!setupMQTT()) return false;
   client.setCallback(callbackSchedule);
   // Subscribe to most priority schedule topic, others are not used
   client.subscribe(topics[SCHEDULE][0]);
   
-  while (!gotUpdate) { // Keep looking for updates until resolved
+  uint8_t attempts = 0;
+  while (!gotUpdate && attempts++ < 50) { // Keep looking for updates until resolved
     client.loop();
     delay(500);
   }
   Serial.println("Got schedule");
+  return gotUpdate;
 }
 
-void getChanges() {
+bool getChanges() {
+  Serial.println("Getting changes");
   gotUpdate = false;
+  if (!setupMQTT()) return false;
   client.setCallback(callbackChanges);
   // Subscribe to most priority changes topic, others are not used
   client.subscribe(topics[CHANGES][0]);
 
-  while (!gotUpdate) { // Keep looking for updates until resolved
+  uint8_t attempts = 0;
+  while (!gotUpdate && attempts++ < 50) { // Keep looking for updates until resolved
     client.loop();
     delay(500);
   }
   Serial.println("Got changes");
+  return gotUpdate;
 }
 
 void callbackChanges(char *topic, byte *payload, unsigned int length) {
-  #ifdef DEBUG
-  Serial.print("Change arrived in topic: ");
-  Serial.println(topic);
-  for (int i = 0; i < length; ++i) {
-    Serial.print(payload[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println();
-  #endif
-  gotUpdate = true; // Indicates schedule was able to be updated
+  gotUpdate = true; // Indicates changes was able to be updated
 
   if (payload[0]==0x00) { // No changes are made, return
     #ifdef DEBUG
@@ -81,6 +84,7 @@ void callbackChanges(char *topic, byte *payload, unsigned int length) {
     client.unsubscribe(topics[CHANGES][0]); // Unsubscribe from the topic
     return;
   }
+  needRefresh = true; // If there are any changes the screen has to be refreshed
 
   // Got changes, fill changes array
   unsigned int i = 0;
@@ -132,6 +136,8 @@ void callbackChanges(char *topic, byte *payload, unsigned int length) {
     }
   }
   client.unsubscribe(topics[CHANGES][0]); // Unsubscribe from the topic
+  byte cl[1] = {0x00};
+  client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
 }
 
 void callbackSchedule(char *topic, byte *payload, unsigned int length) {
@@ -140,9 +146,7 @@ void callbackSchedule(char *topic, byte *payload, unsigned int length) {
   Serial.println(topic);
   #endif
   gotUpdate = true; // Indicates schedule was able to be updated
-
-  // Initialize durations to 0
-  for (int i = 0; i < NUM_CLASSES; ++i) durations[i] = 0;
+  needRefresh = true; // receiving a schedule means the screen has to be refreshed
 
   if (payload[0]==0x00) { // No classes are scheduled for that day, return
     #ifdef DEBUG
