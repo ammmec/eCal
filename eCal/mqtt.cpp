@@ -14,6 +14,7 @@ bool gotUpdate;
 
 bool setupMQTT() {
   if (WiFi.status() != WL_CONNECTED) return false;
+  if (client.connected()) return true;
   espClient.setCACert(ca_cert);
   
   //connecting to the mqtt broker

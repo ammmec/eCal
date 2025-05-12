@@ -122,15 +122,17 @@ extern const unsigned char avisos_bw[];
 extern const unsigned char avisos_red[];
 
 // Function declarations
+bool connectWiFi(uint8_t &minutesTilNextHour);
 bool connectWiFi();
 void disconnectWiFi();
 void restartData();
 void setupLayout(Layout l = DEFAULT_LAYOUT, bool lines = true, bool saveEnergy = false, bool staticSchedule = false);
 void setLines(bool lines);
 void setNumClassesDisplayed(char nClasses);
+void drawNoSchedule();
 void drawSchedule(char classes[][32], int16_t durations[], char announcements[], change_t changed[]);
 void drawPicture(bool portrait, uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char picture_bw[], const unsigned char picture_red[]);
-void updateCurrentHour();
+uint8_t updateCurrentHour();
 void findCurrentPos();
 void drawOutline(uint16_t x, uint16_t y, uint16_t w, uint16_t h, char text[], uint16_t color);
 void drawRectangle(uint16_t h, uint16_t x, uint16_t y, uint16_t color, const unsigned char bg[]);

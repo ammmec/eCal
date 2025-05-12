@@ -1,9 +1,9 @@
 #include "mqtt.h"
 #define uS2M 1000000ULL //1000000ULL*60  // Conversion from micro seconds to minutes
-#define HOUR_SLEEP 10U       // Time the microcontroller will be asleep for in a normal setting
+// Time the microcontroller will be asleep for in different moments
 #define RETRY_SLEEP 5U
-#define NIGHT_SLEEP 5U
-#define WEEKEND_SLEEP 5U
+#define NIGHT_SLEEP 9U // 10 hours: 9 + offset
+#define WEEKEND_SLEEP 57U // 58 hours (10 for morning, 48 for weekend): 57 + offset
 
 int16_t durations[NUM_CLASSES] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 char classes[NUM_CLASSES][32] = {"", "", "", "", "", "", "", "", "", "", "", "", ""};
@@ -31,13 +31,20 @@ void setup() {
   Serial.print("Good morning! Got schedule? ");
   Serial.println(gotSchedule);
 
-  connectWiFi();
+  uint8_t hourSleep;
+  connectWiFi(hourSleep);
   setupMQTT();
 
   if (!gotSchedule) {
-    needRefresh = true;
-    if (getSchedule(classes, durations)) gotSchedule = true;
+    if (getSchedule(classes, durations)) {
+      gotSchedule = true;
+      needRefresh = true;
+    }
     else {
+      if (needRefresh) {
+        drawNoSchedule();
+        needRefresh = false;
+      }
       Serial.println("Did not get schedule... Retry sleep!");
       deepSleep(RETRY_SLEEP); // If it did not manage to get the full schedule, try again after some time
     }
@@ -59,15 +66,15 @@ void setup() {
 
     if (weekday == FRIDAY) {
       Serial.println("Weekend sleep!");
-      deepSleep(WEEKEND_SLEEP);
+      deepSleep(WEEKEND_SLEEP+hourSleep);
     }
     Serial.println("Night sleep!");
-    deepSleep(NIGHT_SLEEP);
+    deepSleep(NIGHT_SLEEP+hourSleep);
   }
 
   needRefresh = false;
   Serial.println("Hour sleep!");
-  deepSleep(HOUR_SLEEP);
+  deepSleep(hourSleep);
 }
 
 void loop() {}

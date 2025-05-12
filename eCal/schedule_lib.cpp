@@ -20,7 +20,7 @@ char prevStartHour;
 bool updatedInfo = true;
 RTC_DATA_ATTR bool needRefresh = true;
 
-bool connectWiFi() {
+bool connectWiFi(uint8_t &minutesTilNextHour) {
   WiFi.begin(ssid, password);
   unsigned int startAttempt = millis();
   while (WiFi.status() != WL_CONNECTED && millis()-startAttempt < 7000) { // Try to connect for 7 seconds. If it fails, put a WiFi error message
@@ -33,9 +33,14 @@ bool connectWiFi() {
     return false;
   }
   else updatedInfo = true;
-  updateCurrentHour();
+  if (minutesTilNextHour != 255) minutesTilNextHour = updateCurrentHour();
   Serial.println("\nWiFi connected.");
   return true;
+}
+
+bool connectWiFi() {
+  uint8_t dummy = 255;
+  return connectWiFi(dummy);
 }
 
 void disconnectWiFi() {
@@ -53,6 +58,7 @@ void restartData() {
     changed[i] = NONE;
   }
   announcements[0] = '\0';
+  clearScreen();
 }
 
 // Must be called before drawing schedule for the first time. Sets up the indicated schedule
@@ -356,6 +362,41 @@ void drawNoWiFi() {
   display.drawBitmap(x, y, noWifi, 50, 50, GxEPD_RED, GxEPD_WHITE);
 }
 
+void drawNoSchedule() {
+  pinMode(PWR, OUTPUT);
+  digitalWrite(PWR, HIGH);
+  display.init(115200, true, 2, false); // For Waveshare with "clever" reset circuit
+
+  display.firstPage();
+  display.setFullWindow();
+
+
+  display.setFont(&FreeMonoBold9pt7b);
+  display.setTextColor(GxEPD_BLACK);
+
+  const char error[] = "No s'ha trobat l'horari";
+
+  int16_t tbx, tby; uint16_t tbw, tbh;
+  uint16_t iconSize = 50;
+  display.getTextBounds(error, 0, 0, &tbx, &tby, &tbw, &tbh);
+  // center bounding box by transposition of origin:
+  uint16_t x = ((display.width() - tbw) / 2) - tbx;
+  uint16_t y = ((display.height() - tbh + iconSize) / 2) - tby;
+
+  uint16_t icon_x = (display.width() - iconSize) / 2;
+  uint16_t icon_y = ((display.height() - iconSize) / 2) - 2*MARGIN;
+  do {
+    display.fillScreen(GxEPD_WHITE);
+    display.setCursor(x, y);
+    display.print(error);
+
+    display.drawBitmap(icon_x, icon_y, noWifi, iconSize, iconSize, GxEPD_RED);
+  } while (display.nextPage());
+
+  display.powerOff();
+  digitalWrite(PWR, LOW);
+}
+
 // Writes the current and the next scheduled class of the day
 void drawCurrentNextClass(char classes[][32], int16_t durations[]) {
   char currClass[64];
@@ -511,7 +552,7 @@ void drawAnnouncements(char announcement[]) {
 }
 
 // Auxiliary function that gets the current hour from the internet
-void updateCurrentHour() { 
+uint8_t updateCurrentHour() { 
   // Init and get the time
   configTime(3600, 3600, "pool.ntp.org");
 
@@ -521,12 +562,15 @@ void updateCurrentHour() {
   while (!getLocalTime(&timeinfo) && (attempts++)<3);
   currentHour = attempts < 3 ? timeinfo.tm_hour : currentHour+1;
   uint16_t minute = timeinfo.tm_min;
+  uint16_t minutesUntilNextHour = 55 - minute; // To offset any RTC error. It should wake up at :55
   if (minute >= 50) {
+    minutesUntilNextHour = 115 - minute; // 60 + (55-minute) it assumes it is the next hour already, go to next :55
     currentHour = (currentHour + 1) % 24; // Wrap around to 0 if it's 23:50+
   }
   weekday = WEEKDAYS(timeinfo.tm_wday); // Update which day of the week it is
 
   currentHour = constrain(currentHour, START_HOUR, LAST_HOUR);
+  return (uint8_t)minutesUntilNextHour;
 }
 
 void findCurrentPos() {
@@ -570,7 +614,7 @@ void drawSchedule(char classes[][32], int16_t durations[], char announcements[],
   }
 
   if (config.saveEnergy && !needRefresh && prevStartHour == startHour) {
-    Serial.println("No changes made");
+    Serial.println("No need to print");
     return; // No changes in announcements or in classes, do not have to update at all
   }
 
