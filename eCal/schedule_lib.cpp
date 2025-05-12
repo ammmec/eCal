@@ -355,6 +355,16 @@ void drawQR() {
   display.print(text);
 }
 
+// Draws the FIB logo onto coordinates (x, y)
+void drawLogo(uint16_t x, uint16_t y) {
+  uint16_t logo_w = 105;
+  uint16_t logo_h = 39;
+  uint16_t logo_x = x - logo_w - MARGIN;
+  uint16_t logo_y = y + MARGIN;
+  display.drawBitmap(logo_x, logo_y, fib_bw, logo_w, logo_h, GxEPD_BLACK);
+  display.drawBitmap(logo_x, logo_y, fib_r, logo_w, logo_h, GxEPD_RED);
+}
+
 // Draws a sign saying it was not possible to connect to WiFi
 void drawNoWiFi() {
   uint16_t x = displayWidth - 50 - MARGIN;
@@ -380,17 +390,35 @@ void drawNoSchedule() {
   uint16_t iconSize = 50;
   display.getTextBounds(error, 0, 0, &tbx, &tby, &tbw, &tbh);
   // center bounding box by transposition of origin:
-  uint16_t x = ((display.width() - tbw) / 2) - tbx;
-  uint16_t y = ((display.height() - tbh + iconSize) / 2) - tby;
+  uint16_t x = ((displayWidth - tbw) / 2) - tbx;
+  uint16_t y = ((displayHeight - tbh + iconSize) / 2) - tby;
 
-  uint16_t icon_x = (display.width() - iconSize) / 2;
-  uint16_t icon_y = ((display.height() - iconSize) / 2) - 2*MARGIN;
+  uint16_t icon_x = (displayWidth - iconSize) / 2;
+  uint16_t icon_y = ((displayHeight - iconSize) / 2) - 2*MARGIN;
   do {
     display.fillScreen(GxEPD_WHITE);
     display.setCursor(x, y);
     display.print(error);
 
     display.drawBitmap(icon_x, icon_y, noWifi, iconSize, iconSize, GxEPD_RED);
+
+    // Draw QR
+    uint16_t qr_x = (displayWidth - QR_SIZE) / 2;
+    uint16_t qr_y = displayHeight - QR_SIZE;
+    display.drawBitmap(qr_x, qr_y, qr, QR_SIZE, QR_SIZE, GxEPD_BLACK);
+
+    const char text[] = "Horari web:";
+    int16_t tbx, tby;
+    uint16_t tbw, tbh;
+    display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
+
+    uint16_t text_x = (displayWidth - tbw) / 2;
+    uint16_t text_y = qr_y - CHAR_HEIGHT;
+
+    display.setCursor(text_x, text_y);
+    display.print(text);
+
+    drawLogo(displayWidth, 0);
   } while (display.nextPage());
 
   display.powerOff();

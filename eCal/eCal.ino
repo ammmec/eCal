@@ -31,7 +31,7 @@ void setup() {
   Serial.print("Good morning! Got schedule? ");
   Serial.println(gotSchedule);
 
-  uint8_t hourSleep;
+  uint8_t hourSleep = 60;
   connectWiFi(hourSleep);
   setupMQTT();
 
@@ -46,6 +46,8 @@ void setup() {
         needRefresh = false;
       }
       Serial.println("Did not get schedule... Retry sleep!");
+      disconnectMQTT();
+      disconnectWiFi();
       deepSleep(RETRY_SLEEP); // If it did not manage to get the full schedule, try again after some time
     }
   }

@@ -140,6 +140,7 @@ void drawClass(char position, char name[], char duration, bool currentClass, cha
 void drawHours(char start);
 void drawClasses(char classes[][32], int16_t durations[], char start, change_t changed[], char announcements[]);
 void drawQR();
+void drawLogo(uint16_t x, uint16_t y);
 void drawNoWiFi();
 void drawCurrentNextClass(char classes[][32], int16_t durations[]);
 void drawAnnouncements(char announcement[]);
