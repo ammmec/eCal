@@ -3,7 +3,7 @@
 
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
-	<title>Avisos - Racó de la FIB</title>
+	<title>Racó de la FIB</title>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 
 	<link rel="icon" href="Rac%C3%B3%20de%20la%20FIB_fitxers/logo_FIB.png">
@@ -13,14 +13,7 @@
 	<link rel="stylesheet" type="text/css" href="Rac%C3%B3%20de%20la%20FIB_fitxers/jquery-ui-fib.css" media="all">
 	<link rel="stylesheet" type="text/css" href="Rac%C3%B3%20de%20la%20FIB_fitxers/impressio.css" media="print">
 
-	<script type="text/javascript" src="Rac%C3%B3%20de%20la%20FIB_fitxers/jquery.ui.datepicker-ca.js"></script>
-	<script type="text/javascript" src="Rac%C3%B3%20de%20la%20FIB_fitxers/jquery.qtip.min.js"></script>
-
-	<script type="text/javascript" src="Rac%C3%B3%20de%20la%20FIB_fitxers/jquery.corners.js"></script>
-
 	<script type="text/javascript" src="Rac%C3%B3%20de%20la%20FIB_fitxers/funcions.js"></script>
-	<script type="text/javascript" src="Rac%C3%B3%20de%20la%20FIB_fitxers/javascript.js"></script>
-
 
 	<style type="text/css">
 		.avisos li {
@@ -58,18 +51,74 @@
 					<h2>Avisos</h2>
 					<h3>Nou avís</h3>
 
-					<div id="contingutsensedreta">
-						<ul class="avisos" style="margin-left: 0;">
-							<li style="margin-bottom: 2em;">
-								<p style="padding: 0.5em; background: #F7FCFC; font-size: 0.9em; color: #333333;">
-									Benvolgut alumnat,
-									Dimecres 19 de febrer comença GEP amb la realització de dues sessions on line de
-									presentació de l'assignatura:
-									- Sessió matí: 13:00 h&nbsp;&nbsp;https://meet.google.com/hpw-ydom-xeo
+					<style>
+						.form-row {
+							display: flex;
+							align-items: flex-start;
+							margin-bottom: 10px;
+							padding: 2px;
+						}
 
-									- Sessió tarda: 18:3...</p>
-							</li>
-						</ul>
+						.form-row label {
+							width: 120px;
+							/* adjust as needed */
+							margin-right: 10px;
+							text-align: left;
+							font-weight: bold;
+						}
+
+						.form-row input {
+							flex: 1;
+						}
+					</style>
+
+					<div id="contingutsensedreta">
+						<form onsubmit="return sendMQTTMessage(this)" id="mqttForm" class="form"
+							style="margin-left: 0;">
+							<div class="form-row">
+								<label for="title">Títol</label>
+								<input type="text" id="title" name="title" required />
+							</div>
+
+							<div class="form-row">
+								<label for="date">Des de</label>
+								<input type="date" id="dateIni" name="dateIni" style="margin-right: 100px;"
+									value="2025-02-05" />
+								<label for="date">fins a </label>
+								<input type="date" id="dateFi" name="dateFi" style="margin-right: 100px;"
+									value="2025-07-04" />
+							</div>
+
+							<div class="form-row">
+								<label for="audience">Va dirigit a...</label>
+								<select id="audience" name="audience"
+									style="background-color: white; width: 100%; flex: 1;">
+									<option value="tots">Tots els estudiants de l'assignatura</option>
+									<option value="grup">Grup 10</option>
+								</select>
+							</div>
+
+							<div class="form-row">
+								<label for="msg">Missatge</label>
+								<textarea class="post" onkeyup="storeCaret(this);" onclick="storeCaret(this);"
+									onselect="storeCaret(this);" style="width: 100%; flex: 1;" tabindex="3"
+									name="message" rows="15" cols="35" data-lt-tmp-id="lt-993106" spellcheck="false"
+									data-gramm="false"></textarea>
+							</div>
+
+							<div class="form-row">
+								<label for="files">Fitxers adjunts</label>
+								<input type="file" id="file-upload" name="file-upload" style="flex: 1;">
+							</div>
+
+							<div class="form-row" style="display: flex; justify-content: flex-end">
+								<button type="button" class="button" onclick="" role="button" aria-disabled="false"
+									style="height: 25px"><img src="Rac%C3%B3%20de%20la%20FIB_fitxers/button.png"
+										style="width:13px; vertical-align: middle; margin-right:2px; margin-left: 7px;">
+									<t style="margin-right: 7px;">Publicar avís</t>
+								</button>
+							</div>
+						</form>
 					</div>
 				</div>
 			</div>
@@ -190,4 +239,5 @@
 	</div>
 	<br>
 </body>
+
 </html>
