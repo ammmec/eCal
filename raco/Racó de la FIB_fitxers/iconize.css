@@ -1,0 +1,199 @@
+/* Iconize 0.5 */
+
+a[href*='.txt'], a[href*='.TXT'], .file.txt, .file {
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_txt.gif) no-repeat center left;
+}
+
+/* websites (pictures and movies) */
+a[href *="youtube.com/watch?"], a[href *="sevenload.com/videos/"], a[href *="metacafe.com/watch/"] { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_film.gif) no-repeat center left;
+}
+
+a[href *="flickr.com/photos/"], a[href *="zooomr.com"], a[href *="imageshack.us"], a[href *="bubbleshare.com"], a[href *="sevenload.com/bilder/"] { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_pic.gif) no-repeat center left;
+}
+
+/* extensions */
+
+a[href*='.doc'], a[href*='.DOC'], a[href*='.rtf'], a[href*='.RTF'], a[href*='.docx'], a[href*='.DOCX'] .file.doc, .file.rt, .file.docx {
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_doc.gif) no-repeat center left;
+}
+
+a[href*='.mws'], a[href*='.MWS'], .file.mws {
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_mws.png) no-repeat center left;
+}
+
+a[href*='.xls'], a[href*='.XLS'], a[href*='.xlsx'], a[href*='.XLSX'], .file.xls, .file.xlsx {
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_xls.gif) no-repeat center left;
+}
+/*
+a[href*='.rss'], a[href*='.atom'] { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_feed.gif) no-repeat center left;
+}
+*/
+a[href*='.opml'], a[href*='.OPML'], .file.ompl { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_opml.gif) no-repeat center left;
+}
+
+a[href*='.phps'], a[href*='.PHPS'], .file.phps { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_phps.gif) no-repeat center left;
+}
+
+a[href*='.torrent'], a[href*='.TORRENT'], .file.torrent { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_torrent.gif) no-repeat center left;
+}
+
+a[href*='.class'],a[href*='.CLASS'], .file.class { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/java_class.png) no-repeat center left;
+}
+
+a[href*='.vcard'], a[href*='.VCARD'], .file.vcard { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_vcard.gif) no-repeat center left;
+}
+
+a[href*='.exe'], a[href*='.EXE'], a[href*='.apk'], a[href*='.APK'], .file.exe, .file.apk{ 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_exe.gif) no-repeat center left;
+}
+
+a[href*='.dmg'], a[href*='.DMG'], a[href*='.app'],a[href*='.APP'], .file.dmg, .file.app { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_dmg.gif) no-repeat center left;
+}
+
+a[href*='.pps'], a[href*='.PPS'], .file.pps { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_pps.gif) no-repeat center left;
+}
+
+a[href*='.pdf'],a[href*='.PDF'], .file.pdf { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_pdf.gif) no-repeat center left;
+}
+
+a[href*='.xpi'], a[href*='.XPI'], .file.xpi { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_plugin.gif) no-repeat center left;
+}
+
+a[href*='.fla'], a[href*='.FLA'], a[href*='.swf'], a[href*='.SWF'], .file.fla, .file.swf { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_flash.gif) no-repeat center left;
+}
+
+a[href*='.rar'], a[href*='.gzip'], a[href*='.bzip'], a[href*='.ace'], a[href*='.tar.gz'], a[href*='.tgz'],
+.file.rar, .file.gzip, .file.bzip, .file.ace, .file.tar.gz, .file.tgz { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_archive.gif) no-repeat center left;
+}
+
+a[href*='.zip'], a[href*='.ZIP'], .file.zip
+{
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/zip.png) no-repeat center left;
+}
+
+a[href*='.ical'], a[href*='.ICAL'], .file.ical { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_ical.gif) no-repeat center left;
+}
+
+a[href*='.css'], a[href*='.CSS'], .file.css { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_css.gif) no-repeat center left;
+}
+
+a[href*='.ttf'], a[href*='.TTF'], .file.ttf { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_ttf.gif) no-repeat center left;
+}
+
+a[href$='.jpg'], .file.jpg, a[href$='.gif'], .file.gif, a[href$='.png'], .file.png, a[href$='.bmp'], .file.bmp, a[href$='.jpeg'], .file.jpeg,
+a[href$='.svg'], .file.svg, a[href$='.eps'], .file.eps { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_pic.gif) no-repeat center left;
+}
+
+a[href$='.mov'], .file.mov, a[href$='.wmv'], .file.wmv, a[href$='.mp4'], .file.mp4
+a[href$='.avi'], .file.avi, a[href$='.mpg'], .file.mpg { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_film.gif) no-repeat center left;
+}
+
+a[href$='.mp3'], .file.mp3, a[href$='.wav'], .file.wav, a[href$='.ogg'], .file.ogg
+a[href$='.wma'], .file.wma, a[href$='.m4a'], .file.m4a { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_music.gif) no-repeat center left;
+}
+
+/* messenger */
+a[href ^="aim:"], .file.aim {
+	padding: 5px 0 5px 20px;
+    background: transparent url(../img/icons/icon_aim.gif) no-repeat center left;
+}
+
+a[href ^="msnim:"], .file.msnim {
+	padding: 5px 0 5px 20px;
+    background: transparent url(../img/icons/icon_msn.gif) no-repeat center left;
+}
+
+a[href ^="xmpp:"], .file.xmpp {
+	padding: 5px 0 5px 20px;
+    background: transparent url(../img/icons/icon_jabber.gif) no-repeat center left;
+}
+
+a[href *="icq.com"], .file.icq { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_icq.gif) no-repeat center left;
+}
+
+a[href *="edit.yahoo.com/config/send_webmesg?"], .file.yahoo { 
+	padding: 5px 0 5px 20px;
+	background: transparent url(../img/icons/icon_yim.gif) no-repeat center left;
+}
+
+a[href ^="callto:"], .file.callto {
+	padding: 5px 0 5px 20px;
+    background: transparent url(../img/icons/icon_call.gif) no-repeat center left;
+}
+
+a[href ^="skype:"], .file.skype {
+	padding: 5px 0 5px 20px;
+    background: transparent url(../img/icons/icon_skype.gif) no-repeat center left;
+}
+
+a[href ^="gg:"], .file.gg {
+	padding: 5px 0 5px 20px;
+    background: transparent url(../img/icons/icon_gadugadu.gif) no-repeat center left;
+}
+
+/* email */
+a[href ^="mailto:"], .file.mailto {
+	padding: 5px 0 5px 20px;
+    background: transparent url(../img/icons/icon_mailto.gif) no-repeat center left;
+}
+
+a.no-iconize
+{
+	padding: 0;
+	background: none;
+}
+
+/* use this class to make sure that images won't get iconized */
+
+.imageLink {
+	padding-right: 0px !important;
+	background: none !important;
+}
