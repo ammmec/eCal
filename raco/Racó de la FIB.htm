@@ -60,7 +60,7 @@
 						}
 
 						.form-row label {
-							width: 120px;
+							width: 135px;
 							/* adjust as needed */
 							margin-right: 10px;
 							text-align: left;
@@ -97,6 +97,147 @@
 									<option value="grup">Grup 10</option>
 								</select>
 							</div>
+
+							<div class="form-row">
+								<label for="type">Tipus d'avís</label>
+								<select id="type" name="type" style="background-color: white; width: 100%; flex: 1;">
+									<option value="info">Informatiu</option>
+									<option value="change">Modificació horari</option>
+								</select>
+								<div class="form-row"
+									title="Penja el títol de l'avís a les pantalles davant de les aules">
+									<label for="device" style="margin-left: 30px;">Penjar a pantalla?</label>
+									<input type="checkbox" id="deviceCheckbox">
+								</div>
+							</div>
+
+							<div id="optionsDevice" style="display: none; margin-top: 10px;">
+								<div class="form-row">
+									<label for="typeChange">Tipus de modificació</label>
+
+									<div style="display: flex; flex: 2; gap: 40px; justify-content: center;"
+										onchange="handleOptionChange()">
+										<p style="display: flex; flex-direction: column; align-items: center;">
+											<span>Canviar hora/dia</span>
+											<input type="radio" name="option" value="swap">
+										</p>
+
+										<p style="display: flex; flex-direction: column; align-items: center;">
+											<span>Cancel·lar classe</span>
+											<input type="radio" name="option" value="cancel">
+										</p>
+
+										<p style="display: flex; flex-direction: column; align-items: center;">
+											<span>Afegir classe</span>
+											<input type="radio" name="option" value="add">
+										</p>
+
+										<p style="display: flex; flex-direction: column; align-items: center;">
+											<span>Altres</span>
+											<input type="radio" name="option" value="other">
+										</p>
+									</div>
+								</div>
+
+								<div class="form-row">
+									<div class="form-row">
+										<label for="dateChange" id="mainClass">Classe del dia</label>
+										<input type="date" id="dateChange" name="dateIni"
+											style="margin-right: 10px; flex: 1;" />
+										<input type="time" id="time" name="time">
+									</div>
+
+									<div class="form-row" id="toClass">
+										<label for="date" style="margin-left: 50px;">al dia</label>
+										<input type="date" id="dateFi" name="dateFi" style="margin-right: 10px;" />
+										<input type="time" id="time" name="time">
+									</div>
+								</div>
+
+								<div class="form-row" style="align-items: center;">
+									<div class="form-row">
+										<label id="fromAula">De l'aula</label>
+										<select id="aula" name="fromAula"
+											style="background-color: white; width: 100%; flex: 1;">
+											<option value="a6001">A6001</option>
+											<option value="a6002">A6002</option>
+										</select>
+									</div>
+									<div class="form-row" id="toAula">
+										<label style="margin-left: 160px;">a l'aula</label>
+										<select id="aula" name="toAula"
+											style="background-color: white; width: 100%; flex: 1;">
+											<option value="a6001">A6001</option>
+											<option value="a6002">A6002</option>
+										</select>
+									</div>
+								</div>
+							</div>
+
+							<div id="sendAnnouncement" style="display: none; margin-top: 10px;">
+								<div class="form-row">
+									<label for="aula">Aula/es a on enviar-ho</label>
+									<select id="aula" name="aula" style="background-color: white; width: 100%; flex: 1;"
+										multiple>
+										<option value="a6001">A6001</option>
+										<option value="a6002">A6002</option>
+									</select>
+
+									<div class="form-row" id="toClass">
+										<label for="date" style="margin-left: 50px;">el dia</label>
+										<input type="date" id="dateFi" name="dateFi" style="margin-right: 10px;" />
+									</div>
+								</div>
+							</div>
+
+							<script>
+								const checkbox = document.getElementById('deviceCheckbox');
+								const type = document.getElementById('optionsDevice');
+								const announcement = document.getElementById('sendAnnouncement');
+								const select = document.getElementById('type');
+
+								checkbox.addEventListener('change', () => {
+									type.style.display = checkbox.checked && select.value === 'change' ? 'block' : 'none';
+									announcement.style.display = checkbox.checked && select.value === 'info' ? 'block' : 'none';
+								});
+								select.addEventListener('change', () => {
+									type.style.display = checkbox.checked && select.value === 'change' ? 'block' : 'none';
+									announcement.style.display = checkbox.checked && select.value === 'info' ? 'block' : 'none';
+								});
+
+								function handleOptionChange() {
+									const selected = document.querySelector('input[name="option"]:checked')?.value;
+									const toClass = document.getElementById('toClass');
+									const mainClass = document.getElementById('mainClass');
+
+									const fromAula = document.getElementById('fromAula');
+									const toAula = document.getElementById('toAula');
+
+									if (selected === 'swap') {
+										toClass.style.display = 'flex';
+										mainClass.textContent = 'Classe del dia';
+										toAula.style.display = 'flex';
+										fromAula.textContent = "De l'aula";
+									} else if (selected === 'add') {
+										toClass.style.display = 'none';
+										mainClass.textContent = 'Afegeix al dia...';
+										toAula.style.display = 'none';
+										fromAula.textContent = "A l'aula";
+									}
+									else if (selected === 'cancel') {
+										toClass.style.display = 'none';
+										mainClass.textContent = 'Cancel·la la classe...';
+										toAula.style.display = 'none';
+										fromAula.textContent = "De l'aula";
+									}
+									else {
+										toClass.style.display = 'none';
+										mainClass.textContent = 'Modificar classe...';
+										toAula.style.display = 'none';
+										fromAula.textContent = "De l'aula";
+									}
+								}
+							</script>
 
 							<div class="form-row">
 								<label for="msg">Missatge</label>
