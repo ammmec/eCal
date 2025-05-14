@@ -29,6 +29,9 @@
 
 </head>
 
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="Rac%C3%B3%20de%20la%20FIB_fitxers/mqtt-script.js"></script>
+
 <body>
 	<div class="cap">
 		<img src="Rac%C3%B3%20de%20la%20FIB_fitxers/header.png" alt="Dashboard screenshot"
@@ -73,11 +76,10 @@
 					</style>
 
 					<div id="contingutsensedreta">
-						<form onsubmit="return sendMQTTMessage(this)" id="mqttForm" class="form"
-							style="margin-left: 0;">
+						<form onsubmit="return sendMQTTMessage()" id="mqttForm" class="form" style="margin-left: 0;">
 							<div class="form-row">
 								<label for="title">Títol</label>
-								<input type="text" id="title" name="title" required />
+								<input type="text" id="title" name="title" />
 							</div>
 
 							<div class="form-row">
@@ -104,11 +106,17 @@
 									<option value="info">Informatiu</option>
 									<option value="change">Modificació horari</option>
 								</select>
-								<div class="form-row"
-									title="Penja el títol de l'avís a les pantalles davant de les aules">
+								<div class="form-row">
 									<label for="device" style="margin-left: 30px;">Penjar a pantalla?</label>
 									<input type="checkbox" id="deviceCheckbox">
 								</div>
+							</div>
+
+							<div class="form-row" style="display: none;" id="announcementTitle">
+								<label> Missatge <span id="optional"
+										style="color: gray; font-weight: normal;">(opcional)</span>
+								</label>
+								<input type="text" id="MQTTmessage" name="MQTTmessage">
 							</div>
 
 							<div id="optionsDevice" style="display: none; margin-top: 10px;">
@@ -144,20 +152,20 @@
 										<label for="dateChange" id="mainClass">Classe del dia</label>
 										<input type="date" id="dateChange" name="dateIni"
 											style="margin-right: 10px; flex: 1;" />
-										<input type="time" id="time" name="time">
+										<input type="time" id="fromTime" name="time">
 									</div>
 
 									<div class="form-row" id="toClass">
 										<label for="date" style="margin-left: 50px;">al dia</label>
-										<input type="date" id="dateFi" name="dateFi" style="margin-right: 10px;" />
-										<input type="time" id="time" name="time">
+										<input type="date" id="dateTo" name="dateFi" style="margin-right: 10px;" />
+										<input type="time" id="toTime" name="time">
 									</div>
 								</div>
 
 								<div class="form-row" style="align-items: center;">
 									<div class="form-row">
 										<label id="fromAula">De l'aula</label>
-										<select id="aula" name="fromAula"
+										<select id="fromAulaS" name="fromAula"
 											style="background-color: white; width: 100%; flex: 1;">
 											<option value="a6001">A6001</option>
 											<option value="a6002">A6002</option>
@@ -165,10 +173,10 @@
 									</div>
 									<div class="form-row" id="toAula">
 										<label style="margin-left: 160px;">a l'aula</label>
-										<select id="aula" name="toAula"
+										<select id="toAulaS" name="toAula"
 											style="background-color: white; width: 100%; flex: 1;">
-											<option value="a6001">A6001</option>
-											<option value="a6002">A6002</option>
+											<option value="A6001">A6001</option>
+											<option value="A6002">A6002</option>
 										</select>
 									</div>
 								</div>
@@ -184,8 +192,8 @@
 									</select>
 
 									<div class="form-row" id="toClass">
-										<label for="date" style="margin-left: 50px;">el dia</label>
-										<input type="date" id="dateFi" name="dateFi" style="margin-right: 10px;" />
+										<label for="infoDate" style="margin-left: 50px;">el dia</label>
+										<input type="date" id="infoDate" name="dateFi" style="margin-right: 10px;" />
 									</div>
 								</div>
 							</div>
@@ -193,16 +201,22 @@
 							<script>
 								const checkbox = document.getElementById('deviceCheckbox');
 								const type = document.getElementById('optionsDevice');
-								const announcement = document.getElementById('sendAnnouncement');
+								const info = document.getElementById('sendAnnouncement');
 								const select = document.getElementById('type');
+								const announcement = document.getElementById('announcementTitle');
+								const optional = document.getElementById('optional');
 
 								checkbox.addEventListener('change', () => {
 									type.style.display = checkbox.checked && select.value === 'change' ? 'block' : 'none';
-									announcement.style.display = checkbox.checked && select.value === 'info' ? 'block' : 'none';
+									info.style.display = checkbox.checked && select.value === 'info' ? 'block' : 'none';
+									optional.style.visibility = select.value === 'info' ? 'hidden' : 'visible';
+									announcement.style.display = checkbox.checked ? 'block' : 'none';
 								});
 								select.addEventListener('change', () => {
 									type.style.display = checkbox.checked && select.value === 'change' ? 'block' : 'none';
-									announcement.style.display = checkbox.checked && select.value === 'info' ? 'block' : 'none';
+									info.style.display = checkbox.checked && select.value === 'info' ? 'block' : 'none';
+									optional.style.visibility = select.value === 'info' ? 'hidden' : 'visible';
+									announcement.style.display = checkbox.checked ? 'block' : 'none';
 								});
 
 								function handleOptionChange() {
@@ -253,10 +267,11 @@
 							</div>
 
 							<div class="form-row" style="display: flex; justify-content: flex-end">
-								<button type="button" class="button" onclick="" role="button" aria-disabled="false"
+								<button type="submit" class="button" role="button" aria-disabled="false"
 									style="height: 25px"><img src="Rac%C3%B3%20de%20la%20FIB_fitxers/button.png"
-										style="width:13px; vertical-align: middle; margin-right:2px; margin-left: 7px;">
-									<t style="margin-right: 7px;">Publicar avís</t>
+										style="width:13px; vertical-align: middle; margin-right:2px; margin-left: 7px;"
+										id="sendButton">
+									<t style="margin-right: 7px;" id="buttonText">Publicar avís</t>
 								</button>
 							</div>
 						</form>
