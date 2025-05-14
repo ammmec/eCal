@@ -55,6 +55,7 @@ dkms.conf
 # Confidential files (e.g. passwords)
 *_secure.h
 *_secure.py
+*_secure.js
 
 # Overleaf repository
 documentation/

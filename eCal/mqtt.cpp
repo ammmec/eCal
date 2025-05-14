@@ -71,7 +71,6 @@ bool getChanges() {
     client.loop();
     delay(500);
   }
-  Serial.println("Got changes");
   return gotUpdate;
 }
 
@@ -92,7 +91,7 @@ void callbackChanges(char *topic, byte *payload, unsigned int length) {
   while (i < length) { // Parse the whole sent message
     uint8_t pos = (uint8_t)payload[i]>>4; // Start position (hour-8)
     uint16_t duration = (uint16_t)payload[i++]&0x0F; // Duration in hours
-    changed[pos] = static_cast<change_t>((uint8_t)((payload[i++]>>4)&0x70) + 1); // Type of change
+    changed[pos] = static_cast<change_t>((uint8_t)(payload[i++]>>4) + 1); // Type of change
 
     #ifdef DEBUG
     Serial.print("Start: ");
@@ -100,7 +99,12 @@ void callbackChanges(char *topic, byte *payload, unsigned int length) {
     Serial.print(" Duration: ");
     Serial.print(duration);
     Serial.print(" Type: ");
-    Serial.print((int)changed[pos]);
+    /*  NONE    -> 0
+        GENERAL -> 1
+        ADD     -> 2
+        CANCEL  -> 3
+    */
+    Serial.println((int)changed[pos]);
     #endif
 
     if (changed[pos]==ADD) { // Addition, make a new class
@@ -114,11 +118,17 @@ void callbackChanges(char *topic, byte *payload, unsigned int length) {
       for (i = i; i < nameEnd; i++) {
         classes[pos][k++] = (char)payload[i];
       }
+      #ifdef DEBUG
+      Serial.print(classes[pos]);
+      Serial.print(" ");
+      Serial.println(durations[pos]);
+      #endif
     }
   }
   client.unsubscribe(topics[CHANGES][0]); // Unsubscribe from the topic
   byte cl[1] = {0x00};
   client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
+  Serial.println("Got changes");
 }
 
 void callbackSchedule(char *topic, byte *payload, unsigned int length) {

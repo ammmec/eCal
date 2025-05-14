@@ -31,6 +31,7 @@
 
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script src="Rac%C3%B3%20de%20la%20FIB_fitxers/mqtt-script.js"></script>
+<script src="Rac%C3%B3%20de%20la%20FIB_fitxers/mqtt_secure.js"></script>
 
 <body>
 	<div class="cap">
@@ -112,11 +113,14 @@
 								</div>
 							</div>
 
-							<div class="form-row" style="display: none;" id="announcementTitle">
-								<label> Missatge <span id="optional"
-										style="color: gray; font-weight: normal;">(opcional)</span>
+							<div class="form-row" style="display: none;" id="announcementTitle"
+								title="Missatge que s'enviarà a la pantalla">
+								<label for="MQTTmessage" style="display: inline-block; margin-right: 5px;"> Avís
+									<img src="Rac%C3%B3%20de%20la%20FIB_fitxers/pantalla.png"
+										style="width:13px; vertical-align: middle; margin-left: 2px;"> <span
+										id="optional" style="color: gray; font-weight: normal;">(opcional)</span>
 								</label>
-								<input type="text" id="MQTTmessage" name="MQTTmessage">
+								<input type="text" id="MQTTmessage" name="MQTTmessage" style="flex: 1;">
 							</div>
 
 							<div id="optionsDevice" style="display: none; margin-top: 10px;">

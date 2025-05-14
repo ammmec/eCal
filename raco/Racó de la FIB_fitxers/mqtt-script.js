@@ -6,38 +6,52 @@ function formatDate(date) {
   return `${day}${month}${year}`; // Outputs in the format "DDMMYYYY"
 }
 
+function makeTopic(topic, classroom, date = '') {
+  return `${topic}/${classroom}${date ? '/' + date : ''}`;
+}
+
 function publishMessage(client, topic, msg) {
   let previousMessages = null;
-  client.subscribe(topic);
 
   const handler = (recTopic, message) => {
-    if (recTopic === topic) previousMessages = message;
+    if (recTopic === topic && message.length >= 1 && message[0] !== 0x00) previousMessages = message;
   };
 
   client.on('message', handler);
 
-  setTimeout(() => {
-    client.removeListener('message', handler);
-    client.unsubscribe(topic);
-    let fullPayload;
-    if (previousMessages) {
-      const combined = new Uint8Array(previousMessages.length + msg.length);
-      combined.set(previousMessages, 0);
-      combined.set(msg, previousMessages.length);
-      fullPayload = combined;
-    } else {
-      fullPayload = msg;
-    }
-    client.publish(topic, fullPayload, { retain: true }, () => {
-      console.log(fullPayload);
-      console.log('Published to topic: ' + topic);
-    });
-  }, 5000);
+  client.subscribe(topic, () => {
+    setTimeout(() => {
+      client.removeListener('message', handler);
+      client.unsubscribe(topic);
+      let fullPayload;
+
+      if (previousMessages) {
+        const combined = new Uint8Array(previousMessages.length + msg.length);
+        combined.set(previousMessages, 0);
+        combined.set(msg, previousMessages.length);
+        fullPayload = combined;
+      } else {
+        fullPayload = msg;
+      }
+
+      client.publish(topic, fullPayload, { retain: true }, () => {
+        console.log(fullPayload);
+        console.log('Published to topic: ' + topic);
+      });
+    }, 5000);
+  });
 }
 
 function buildPayload(start, duration, type, name = '') {
   const byte1 = (((start - 8) & 0x0F) << 4) | (duration & 0x0F);
-  const byte2 = type == 'other' ? 0 : type === 'add' ? (1) << 4 : (2) << 4;
+  let byte2;
+  if (type === 'add') {
+    byte2 = 1 << 4;
+  } else if (type === 'cancel') {
+    byte2 = 2 << 4;
+  } else {
+    byte2 = 0;
+  }
 
   const nameLength = name.length;
   const nameBytes = [...name].map(c => c.charCodeAt(0)); // Convert name to byte array
@@ -57,16 +71,7 @@ function buildPayload(start, duration, type, name = '') {
 function sendMQTTMessage() {
   if (!document.getElementById('deviceCheckbox').checked) return false; // If there is no intention to send information to the broker, do not
 
-  const options = {
-    clean: true,
-    connectTimeout: 4000,
-    clientId: 'web_client_' + Math.random().toString(16).substr(2, 8),
-    username: 'elki0_0',
-    password: 'szUfgVCW#5x4=8z',
-    reconnectPeriod: 1000
-  };
-
-  const announcement = (document.getElementById('MQTTmessage').value).normalize("NFD").replace(/[\u0300-\u036f]/g, "");; // The announcement to send to the announcements topic
+  const announcement = (document.getElementById('MQTTmessage').value).normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // The announcement to send to the announcements topic
   let type = document.getElementById('type').value === 'info' ? 'info' : document.querySelector('input[name="option"]:checked')?.value; // Type of message to send
 
   const client = mqtt.connect('wss://u7febd84.ala.us-east-1.emqxsl.com:8084/mqtt', options); // Connect to MQTT
@@ -88,23 +93,34 @@ function sendMQTTMessage() {
   let className = "GEI AE 10T"; // As it is a prototype, the name is a placeholder
 
   // Send an announcement if it was written
-  if (announcement != '') publishMessage(client, 'announcements/' + sendClassroom + (sendDate === '' ? '' : ('/' + sendDate)), announcement);
+  if (announcement != '') publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
   if (type === 'info') return false;
 
-  publishMessage(client, 'changes/' + sendClassroom + (sendDate === '' ? '' : ('/' + sendDate)), buildPayload(sendHour, 2, type === "swap" ? "cancel" : type, type === 'add' ? className : ''));
+  if (type != "swap") {
+    publishMessage(client, makeTopic('changes', sendClassroom, sendDate), buildPayload(sendHour, 2, type, type === 'add' ? className : ''));
+    return false;
+  }
 
-  if (type != "swap") return false;
+  payloadCancel = buildPayload(sendHour, 2, "cancel", '');
+  payloadAdd = buildPayload(parseInt(((document.getElementById('toTime').value).split(':'))[0]), 2, "add", className);
 
-  type = "add";
   select = document.getElementById('toAulaS');
-  sendClassroom = select.options[select.selectedIndex].text;
-  sendDate = formatDate(new Date(document.getElementById('dateTo').value));
-  if (sendDate === formatDate(new Date())) sendDate = '';
-  sendHour = parseInt(((document.getElementById('toTime').value).split(':'))[0]);
-  if (announcement != '') publishMessage(client, 'announcements/' + sendClassroom + (sendDate === '' ? '' : ('/' + sendDate)), announcement);
 
-  publishMessage(client, 'changes/' + sendClassroom + (sendDate === '' ? '' : ('/' + sendDate)), buildPayload(sendHour, 2, type, type === 'add' ? className : ''));
+  if (formatDate(new Date(document.getElementById('dateChange').value)) === formatDate(new Date(document.getElementById('dateTo').value))
+    && sendClassroom === select.options[select.selectedIndex].text) {
+    if (announcement != '') publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
+    const concatPayload = new Uint8Array(payloadCancel.length + payloadAdd.length);
+    concatPayload.set(payloadCancel, 0);
+    concatPayload.set(payloadAdd, payloadCancel.length);
 
-
+    publishMessage(client, makeTopic('changes', sendClassroom, sendDate), concatPayload);
+  }
+  else {
+    publishMessage(client, makeTopic('changes', sendClassroom, sendDate), payloadCancel);
+    sendClassroom = select.options[select.selectedIndex].text;
+    sendDate = formatDate(new Date(document.getElementById('dateTo').value));
+    if (sendDate === formatDate(new Date())) sendDate = '';
+    publishMessage(client, makeTopic('changes', sendClassroom, sendDate), payloadAdd);
+  }
   return false;
 }
