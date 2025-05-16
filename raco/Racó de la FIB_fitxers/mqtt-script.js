@@ -71,7 +71,7 @@ function buildPayload(start, duration, type, name = '') {
 function sendMQTTMessage() {
   if (!document.getElementById('deviceCheckbox').checked) return false; // If there is no intention to send information to the broker, do not
 
-  const announcement = (document.getElementById('MQTTmessage').value).normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // The announcement to send to the announcements topic
+  const announcement = (document.getElementById('MQTTmessage').value).normalize("NFD").replace(/[\u0300-\u036f]/g, "")+"\n\n"; // The announcement to send to the announcements topic
   let type = document.getElementById('type').value === 'info' ? 'info' : document.querySelector('input[name="option"]:checked')?.value; // Type of message to send
 
   const client = mqtt.connect('wss://u7febd84.ala.us-east-1.emqxsl.com:8084/mqtt', options); // Connect to MQTT

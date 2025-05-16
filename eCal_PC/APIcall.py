@@ -7,6 +7,7 @@ from collections import defaultdict
 from paho.mqtt import client as mqtt_client
 import random
 import ssl
+import time
 
 startHour = 8       # Classes start at 8 in the morning...
 endHour = 21        # ... and end at 21h
@@ -44,7 +45,7 @@ def getToday():
     today = datetime.now()
     startDate = today.strftime("%Y-%m-%d")
     endDate = (today + timedelta(days=1)).strftime("%Y-%m-%d")
-    return startDate, endDate
+    return startDate, endDate, today.strftime("%d%m%Y")
 
 # API call to get list of classrooms
 def getClassrooms():
@@ -133,8 +134,76 @@ def processClassroomSchedule(room, startDate, endDate):
     print(events)
     return formatClasses(events, start=startHour, end=endHour)
 
+messageReceived = False
+receivedMessage = None
+
+TIMEOUT = 3 # 3 seconds for each topic to receive something
+nothing  = b'\x00'
+
+def subscribe(client: mqtt_client, topic):
+    global messageReceived, receivedMessage  # Needed to update globals
+
+    def on_message(client, userdata, msg):
+        global messageReceived, receivedMessage  # Needed inside the callback too
+        print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+        messageReceived = True
+        receivedMessage = msg.payload.decode()
+
+    client.on_message = on_message  # Assign the callback
+    client.subscribe(topic)
+
+def waitForMessage():
+    global messageReceived, receivedMessage
+
+    messageReceived = False
+    receivedMessage = None
+    start_time = time.time()
+    while time.time() - start_time < TIMEOUT:
+        if messageReceived:
+            return receivedMessage
+        time.sleep(0.1)  # Wait a bit
+    return None
+
+def checkPrevious(type, client, id, today):
+    topic = type+"/"+id+"/"+today
+
+    subscribe(client, topic)
+    prevMsg = waitForMessage()
+    client.unsubscribe(topic)
+    publish(client, "", topic) # clear previous topic
+
+
+    topic = "announcements/"+id
+    subscribe(client, topic)
+    currMsg = waitForMessage()
+    client.unsubscribe(topic)
+
+    '''
+    |            sub      |         |
+    | class/today | A6001 |   pub   |
+    ---------------------------------
+    |    0           0    |   0x00  |
+    |    0           1    |    -    |
+    |    1           0    |   prev  |
+    |    1           1    |  concat |
+
+    '''
+    if (prevMsg == None and currMsg == None):
+        print("No messages at all!")
+        publish(client, nothing, topic)
+    elif (prevMsg != None and currMsg == None):
+        print("Messages at dated topic")
+        publish(client, prevMsg, topic)
+    elif (prevMsg != None and currMsg != None):
+        print("Messages in both topics")
+        publish(client, prevMsg+currMsg, topic)
+    else:
+        print("Only at current topic")
+
+
+
 def main():
-    startDate, endDate = getToday()
+    startDate, endDate, today = getToday()
     classrooms = getClassrooms()
     client = connectMQTT()
     client.loop_start()
@@ -145,6 +214,9 @@ def main():
         if (room.get('id') == "A6001"):
             payload = processClassroomSchedule(room, startDate, endDate)
             publish(client, payload, topic)
+
+            checkPrevious("announcements", client, id, today)
+            checkPrevious("changes", client, id, today)
 
     client.loop_stop()
 
