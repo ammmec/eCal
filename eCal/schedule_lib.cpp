@@ -72,7 +72,6 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = true,
         .showAnnouncements = true,
-        .announcementSupport = true,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
         .staticSchedule = saveEnergy || staticSchedule, // If energy saver is on, the schedule will be static to save energy
@@ -97,7 +96,6 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = false,
         .showAnnouncements = false,
-        .announcementSupport = false,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
         .staticSchedule = false, // Avoids a bug if it is true
@@ -120,7 +118,6 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = false,
         .showAnnouncements = false,
-        .announcementSupport = true,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
         .staticSchedule = false,
@@ -144,7 +141,6 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = true,
         .showAnnouncements = true,
-        .announcementSupport = true,
         .showCurrNext = true,
         .saveEnergy = false, // It has to update the "current" and "next" class, can't be energy efficient
         .staticSchedule = false,
@@ -172,7 +168,6 @@ void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule
         .showLines = lines,
         .showQR = true,
         .showAnnouncements = true,
-        .announcementSupport = true,
         .showCurrNext = false,
         .saveEnergy = saveEnergy,
         .staticSchedule = staticSchedule,
@@ -691,10 +686,6 @@ void clearScreen() {
 
   display.powerOff();
   digitalWrite(PWR, LOW);
-}
-
-bool checkAnnouncements() {
-  return config.announcementSupport;
 }
 
 // Manages the picture printing in the display

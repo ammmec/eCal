@@ -10,7 +10,7 @@ const char* topics[4][4] = {
   {"config/A6/0/A6001",   "config/A6/0",   "config/A6",   "config"}
 };
 
-bool gotUpdate;
+char gotUpdate;
 
 bool setupMQTT() {
   if (WiFi.status() != WL_CONNECTED) return false;
@@ -58,25 +58,25 @@ bool getSchedule(char classes[][32], int16_t durations[]) {
   return gotUpdate;
 }
 
-bool getChanges() {
-  Serial.println("Getting changes");
-  gotUpdate = false;
+bool getDetails() {
+  gotUpdate = 0;
+  char numUpdates = 2;
+  Serial.println("Getting changes & announcements");
   if (!setupMQTT()) return false;
-  client.setCallback(callbackChanges);
-  // Subscribe to most priority changes topic, others are not used
-  client.subscribe(topics[CHANGES][0]);
+  client.setCallback(callbackDetails);
+
+  client.subscribe(topics[ANNOUNCEMENTS][0]); // Subscribe to announcement topic
+  client.subscribe(topics[CHANGES][0]); // Subscribe to changes topic, others are not used
 
   uint8_t attempts = 0;
-  while (!gotUpdate && attempts++ < 50) { // Keep looking for updates until resolved
+  while (gotUpdate < numUpdates && attempts++ < 50) { // Keep looking for updates until resolved
     client.loop();
     delay(500);
   }
-  return gotUpdate;
+  return gotUpdate >= numUpdates;
 }
 
-void callbackChanges(char *topic, byte *payload, unsigned int length) {
-  gotUpdate = true; // Indicates changes was able to be updated
-
+void getChanges(byte *payload, unsigned int length) {
   if (payload[0]==0x00) { // No changes are made, return
     #ifdef DEBUG
     Serial.println("No changes made");
@@ -129,6 +129,35 @@ void callbackChanges(char *topic, byte *payload, unsigned int length) {
   byte cl[1] = {0x00};
   client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
   Serial.println("Got changes");
+}
+
+void getAnnouncements(byte *payload, unsigned int length) {
+  if (payload[0]==0x00) { // No announcements were sent, return
+    #ifdef DEBUG
+    Serial.println("No announcements sent");
+    #endif
+    client.unsubscribe(topics[ANNOUNCEMENTS][0]); // Unsubscribe from the topic
+    return;
+  }
+  needRefresh = true; // If there are any changes the screen has to be refreshed
+
+  // Write announcements to appropiate array
+  if (announcements[0] == '\0') strncpy (announcements, (char*)payload, min(length, SIZE_ANNOUNCEMENTS)); // Announcements empty, just copy them
+  else { // Concatenate strings
+    strncat(announcements, (char*)payload, min(length, SIZE_ANNOUNCEMENTS - strlen(announcements) - 1));
+  }
+
+  client.unsubscribe(topics[ANNOUNCEMENTS][0]); // Unsubscribe from the topic
+  byte cl[1] = {0x00};
+  client.publish(topics[ANNOUNCEMENTS][0], cl, 1, true); // Reset announcements made for future checks
+  Serial.println("Got announcements");
+}
+
+void callbackDetails(char *topic, byte *payload, unsigned int length) {
+  gotUpdate++; // Indicates changes/announcements was able to be updated
+
+  if (strcmp(topics[CHANGES][0], topic) == 0) getChanges(payload, length);
+  else if (strcmp(topics[ANNOUNCEMENTS][0], topic) == 0) getAnnouncements(payload, length);
 }
 
 void callbackSchedule(char *topic, byte *payload, unsigned int length) {

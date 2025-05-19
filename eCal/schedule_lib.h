@@ -72,7 +72,6 @@ struct LayoutConfig {
   bool showLines;
   bool showQR;
   bool showAnnouncements;
-  bool announcementSupport; // Whether the layout offers schedule support or not
   bool showCurrNext;
   bool saveEnergy; // Schedule will not be refreshed unless it changes (does not show the current class in red)
   bool staticSchedule; // if false, the top of the schedule will be the current class. Otherwise, it has morning and afternoon schedule
@@ -105,8 +104,9 @@ RTC_DATA_ATTR extern uint16_t currentHour;
 extern WEEKDAYS weekday;
 extern char curr_class_pos; // Index of current class in class array
 
+#define SIZE_ANNOUNCEMENTS 256U
 RTC_DATA_ATTR extern bool needRefresh;
-RTC_DATA_ATTR extern char announcements[256];
+RTC_DATA_ATTR extern char announcements[SIZE_ANNOUNCEMENTS];
 RTC_DATA_ATTR extern char classes[NUM_CLASSES][32];
 RTC_DATA_ATTR extern int16_t durations[NUM_CLASSES];
 RTC_DATA_ATTR extern change_t changed[NUM_CLASSES];
@@ -145,6 +145,5 @@ void drawNoWiFi();
 void drawCurrentNextClass(char classes[][32], int16_t durations[]);
 void drawAnnouncements(char announcement[]);
 void printWithLineBreaks(const char* text, uint16_t x, uint16_t y, uint8_t maxCharsPerLine);
-bool checkAnnouncements();
 void clearScreen();
 #endif // SCHEDULE_LIB_H

@@ -8,7 +8,7 @@
 int16_t durations[NUM_CLASSES] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 char classes[NUM_CLASSES][32] = {"", "", "", "", "", "", "", "", "", "", "", "", ""};
 change_t changed[NUM_CLASSES] = {NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE};
-char announcements[256] = "I am an announcement\n";
+char announcements[256];
 
 RTC_DATA_ATTR bool gotSchedule = false;
 
@@ -52,8 +52,7 @@ void setup() {
     }
   }
 
-  // if (checkAnnouncements()) getAnnouncements;
-  getChanges();
+  getDetails();
 
   disconnectMQTT();
   disconnectWiFi();
