@@ -98,7 +98,8 @@ struct LayoutConfig {
 };
 
 // Globals
-extern LayoutConfig config;
+RTC_DATA_ATTR extern LayoutConfig config;
+RTC_DATA_ATTR extern uint16_t rawConfig;
 
 RTC_DATA_ATTR extern uint16_t currentHour;
 extern WEEKDAYS weekday;

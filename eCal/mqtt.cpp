@@ -60,13 +60,14 @@ bool getSchedule(char classes[][32], int16_t durations[]) {
 
 bool getDetails() {
   gotUpdate = 0;
-  char numUpdates = 2;
+  char numUpdates = 3; // changes, announcements, config
   Serial.println("Getting changes & announcements");
   if (!setupMQTT()) return false;
   client.setCallback(callbackDetails);
 
   client.subscribe(topics[ANNOUNCEMENTS][0]); // Subscribe to announcement topic
-  client.subscribe(topics[CHANGES][0]); // Subscribe to changes topic, others are not used
+  client.subscribe(topics[CHANGES][0]); // Subscribe to changes topic
+  client.subscribe(topics[CONFIG][0]);
 
   uint8_t attempts = 0;
   while (gotUpdate < numUpdates && attempts++ < 50) { // Keep looking for updates until resolved
@@ -153,11 +154,56 @@ void getAnnouncements(byte *payload, unsigned int length) {
   Serial.println("Got announcements");
 }
 
+void getConfig(char *topic, byte *payload, unsigned int length) {
+  if ((payload[0]>>5) == 0b111) { // Not an actual configuration, subscribe to the the topic with the information, make it more generalized
+    --gotUpdate;
+    #ifdef DEBUG
+    Serial.print("No config in ");
+    Serial.println(topic);
+    #endif
+    client.unsubscribe(topic); // Unsubscribe from the topic
+    client.subscribe(topics[CONFIG][(payload[0]>>3)&0x03]); // Most specialized topic with the configuration
+    return;
+  }
+
+  uint16_t receivedConfig = ((uint16_t)(payload[0]) << 8) | (uint16_t)payload[1];
+  #ifdef DEBUG
+  Serial.print("Previous config: ");
+  Serial.println(rawConfig, HEX);
+  Serial.print("Received: ");
+  Serial.println(receivedConfig, HEX);
+  #endif
+
+  if (receivedConfig != rawConfig) {
+    needRefresh = true;
+    Layout l = static_cast<Layout>((uint8_t)(payload[0]>>5));
+    bool lines = ((uint8_t)payload[0]>>4)&0x01;
+    bool saveEnergy = ((uint8_t)payload[0]>>3)&0x01;
+    bool staticSchedule = ((uint8_t)payload[0]>>2)&0x01;
+    // setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule)
+    setupLayout(l, lines, saveEnergy, staticSchedule);
+    #ifdef DEBUG
+    Serial.print("Layout: ");
+    Serial.println(((uint8_t)(payload[0]>>5)));
+    Serial.print("Lines: ");
+    Serial.println(lines);
+    Serial.print("SaveEnergy: ");
+    Serial.println(saveEnergy);
+    Serial.print("staticSchedule: ");
+    Serial.println(staticSchedule);
+    Serial.print("Retry time: ");
+    Serial.println((receivedConfig>>4)&0x03F);
+    #endif
+    rawConfig = receivedConfig;
+  }
+}
+
 void callbackDetails(char *topic, byte *payload, unsigned int length) {
   gotUpdate++; // Indicates changes/announcements was able to be updated
 
   if (strcmp(topics[CHANGES][0], topic) == 0) getChanges(payload, length);
   else if (strcmp(topics[ANNOUNCEMENTS][0], topic) == 0) getAnnouncements(payload, length);
+  else getConfig(topic, payload, length);// topic is a configuration message
 }
 
 void callbackSchedule(char *topic, byte *payload, unsigned int length) {
