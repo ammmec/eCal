@@ -3,11 +3,12 @@
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
-const char* topics[4][4] = {
-  {"schedule/A6001",      "", "", ""},
-  {"changes/A6001",       "",  "",  ""},
-  {"announcements/A6001", "",  "",  ""},
-  {"config/A6/0/A6001",   "config/A6/0",   "config/A6",   "config"}
+const char* topics[5][4] = {
+  {"schedule/A6001",      nullptr,  nullptr,  nullptr},
+  {"changes/A6001",       nullptr,  nullptr,  nullptr},
+  {"announcements/A6001", nullptr,  nullptr,  nullptr},
+  {"config/A6/0/A6001",   "config/A6/0",   "config/A6",   "config"},
+  {"meta/A6001",          nullptr,  nullptr,  nullptr}
 };
 
 char gotUpdate;
@@ -50,7 +51,7 @@ bool getSchedule(char classes[][32], int16_t durations[]) {
   client.subscribe(topics[SCHEDULE][0]);
   
   uint8_t attempts = 0;
-  while (!gotUpdate && attempts++ < 50) { // Keep looking for updates until resolved
+  while (!gotUpdate && attempts++ < NUM_TRIES) { // Keep looking for updates until resolved
     client.loop();
     delay(500);
   }
@@ -58,22 +59,87 @@ bool getSchedule(char classes[][32], int16_t durations[]) {
   return gotUpdate;
 }
 
+bool newChange;
+bool newAnn;
+char newConfig;
+
 bool getDetails() {
   gotUpdate = 0;
-  char numUpdates = 2;
-  Serial.println("Getting changes & announcements");
+  newChange = false;
+  newAnn = false;
+  newConfig = -1;
+  Serial.println("Getting meta topic");
   if (!setupMQTT()) return false;
-  client.setCallback(callbackDetails);
-
-  client.subscribe(topics[ANNOUNCEMENTS][0]); // Subscribe to announcement topic
-  client.subscribe(topics[CHANGES][0]); // Subscribe to changes topic, others are not used
+  client.setCallback(callbackMeta);
+  client.subscribe(topics[META][0]); // Get status of topics
 
   uint8_t attempts = 0;
-  while (gotUpdate < numUpdates && attempts++ < 50) { // Keep looking for updates until resolved
+  while (!gotUpdate && attempts++ < NUM_TRIES) { // Keep looking for updates until resolved
+    client.loop();
+    delay(500);
+  }
+
+  gotUpdate = 0;
+  client.setCallback(callbackDetails);
+
+  char numUpdates = 0;
+  if (newConfig != (char)(-1)) {
+    client.subscribe(topics[CONFIG][newConfig]);
+    ++numUpdates;
+  }
+  if (newChange) {
+    client.subscribe(topics[CHANGES][0]); // Subscribe to changes topic
+    ++numUpdates;
+  }
+  if (newAnn) {
+    client.subscribe(topics[ANNOUNCEMENTS][0]); // Subscribe to announcement topic
+    ++numUpdates;
+  }
+
+  attempts = 0;
+  while (gotUpdate < numUpdates && attempts++ < NUM_TRIES) { // Keep looking for updates until resolved
     client.loop();
     delay(500);
   }
   return gotUpdate >= numUpdates;
+}
+
+void callbackMeta(char *topic, byte *payload, unsigned int length) {
+  gotUpdate = true;
+  #ifdef DEBUG
+  Serial.print("Meta package: ");
+  Serial.println(payload[0], HEX);
+  #endif
+  if (!(payload[0]&0x98)) { // No meta changes made
+    #ifdef DEBUG
+    Serial.println("No meta changes!");
+    #endif
+    client.unsubscribe(topics[META][0]); // Unsubscribe from the topic
+    return;
+  }
+  if (payload[0]&0x80) {
+    newConfig = ((payload[0])>>5)&0x03;
+    #ifdef DEBUG
+    Serial.print("New configuration: ");
+    Serial.println(newConfig);
+    #endif
+  }
+  if (payload[0]&0x10) {
+    newChange = true;
+    #ifdef DEBUG
+    Serial.println("New change");
+    #endif
+  }
+  if (payload[0]&0x08) {
+    newAnn = true;
+    #ifdef DEBUG
+    Serial.println("New Announcement");
+    #endif
+  }
+  client.unsubscribe(topics[META][0]); // Unsubscribe from the topic
+
+  byte cl[1] = {payload[0]&0x60}; // Flag as read
+  client.publish(topics[META][0], cl, 1, true); // Reset changes made for future checks
 }
 
 void getChanges(byte *payload, unsigned int length) {
@@ -153,11 +219,56 @@ void getAnnouncements(byte *payload, unsigned int length) {
   Serial.println("Got announcements");
 }
 
+void getConfig(char *topic, byte *payload, unsigned int length) {
+  if ((payload[0]>>5) == 0b111) { // Not an actual configuration, subscribe to the the topic with the information, make it more generalized
+    --gotUpdate;
+    #ifdef DEBUG
+    Serial.print("No config in ");
+    Serial.println(topic);
+    #endif
+    client.unsubscribe(topic); // Unsubscribe from the topic
+    client.subscribe(topics[CONFIG][(payload[0]>>3)&0x03]); // Most specialized topic with the configuration
+    return;
+  }
+
+  uint16_t receivedConfig = ((uint16_t)(payload[0]) << 8) | (uint16_t)payload[1];
+  #ifdef DEBUG
+  Serial.print("Previous config: ");
+  Serial.println(rawConfig, HEX);
+  Serial.print("Received: ");
+  Serial.println(receivedConfig, HEX);
+  #endif
+
+  if (receivedConfig != rawConfig) {
+    needRefresh = true;
+    Layout l = static_cast<Layout>((uint8_t)(payload[0]>>5));
+    bool lines = ((uint8_t)payload[0]>>4)&0x01;
+    bool saveEnergy = ((uint8_t)payload[0]>>3)&0x01;
+    bool staticSchedule = ((uint8_t)payload[0]>>2)&0x01;
+    // setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule)
+    setupLayout(l, lines, saveEnergy, staticSchedule);
+    #ifdef DEBUG
+    Serial.print("Layout: ");
+    Serial.println(((uint8_t)(payload[0]>>5)));
+    Serial.print("Lines: ");
+    Serial.println(lines);
+    Serial.print("SaveEnergy: ");
+    Serial.println(saveEnergy);
+    Serial.print("staticSchedule: ");
+    Serial.println(staticSchedule);
+    Serial.print("Retry time: ");
+    Serial.println((receivedConfig>>4)&0x03F);
+    #endif
+    rawConfig = receivedConfig;
+  }
+}
+
 void callbackDetails(char *topic, byte *payload, unsigned int length) {
   gotUpdate++; // Indicates changes/announcements was able to be updated
 
   if (strcmp(topics[CHANGES][0], topic) == 0) getChanges(payload, length);
   else if (strcmp(topics[ANNOUNCEMENTS][0], topic) == 0) getAnnouncements(payload, length);
+  else getConfig(topic, payload, length);// topic is a configuration message
 }
 
 void callbackSchedule(char *topic, byte *payload, unsigned int length) {
@@ -181,7 +292,6 @@ void callbackSchedule(char *topic, byte *payload, unsigned int length) {
   while (i < length) { // Parse the whole sent message
     uint8_t pos = (uint8_t)payload[i]>>4; // Start position (hour-8)
     uint16_t duration = (uint16_t)payload[i++]&0x0F; // Duration in hours
-
     // Format duration array
     durations[pos] = duration;
     for (int j = pos+duration-1; j > pos; --j) durations[j] = -(--duration);
@@ -196,9 +306,7 @@ void callbackSchedule(char *topic, byte *payload, unsigned int length) {
     Serial.print("Start: ");
     Serial.print((uint8_t)payload[i]>>4);
     Serial.print(" Duration: ");
-    Serial.print(duration);
-    Serial.print(" Length name: ");
-    Serial.print(nameEnd-i-1);
+    Serial.print(durations[pos]);
     Serial.print(" Name: ");
     Serial.println(classes[pos]);
     #endif

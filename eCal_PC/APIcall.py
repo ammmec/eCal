@@ -145,9 +145,9 @@ def subscribe(client: mqtt_client, topic):
 
     def on_message(client, userdata, msg):
         global messageReceived, receivedMessage  # Needed inside the callback too
-        print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+        print(f"Received `{msg.payload.hex()}` from `{msg.topic}` topic")
         messageReceived = True
-        receivedMessage = msg.payload.decode()
+        receivedMessage = msg.payload
 
     client.on_message = on_message  # Assign the callback
     client.subscribe(topic)
@@ -173,10 +173,11 @@ def checkPrevious(type, client, id, today):
     publish(client, "", topic) # clear previous topic
 
 
-    topic = "announcements/"+id
+    topic = type+"/"+id
     subscribe(client, topic)
     currMsg = waitForMessage()
     client.unsubscribe(topic)
+    if (currMsg[0]==0x00): currMsg = None
 
     '''
     |            sub      |         |
@@ -191,6 +192,7 @@ def checkPrevious(type, client, id, today):
     if (prevMsg == None and currMsg == None):
         print("No messages at all!")
         publish(client, nothing, topic)
+        return False
     elif (prevMsg != None and currMsg == None):
         print("Messages at dated topic")
         publish(client, prevMsg, topic)
@@ -199,8 +201,21 @@ def checkPrevious(type, client, id, today):
         publish(client, prevMsg+currMsg, topic)
     else:
         print("Only at current topic")
+    return True
 
 
+def sendMeta(newAnn, newChanges, client, id):
+    topic = "meta/"+id
+    subscribe(client, topic)
+    currMeta = waitForMessage()[0]
+    client.unsubscribe(topic)
+    if (newAnn):
+        currMeta = currMeta | 0x08
+
+    if (newChanges):
+        currMeta = currMeta | 0x010
+
+    publish(client, bytes([currMeta]), topic)
 
 def main():
     startDate, endDate, today = getToday()
@@ -215,8 +230,9 @@ def main():
             payload = processClassroomSchedule(room, startDate, endDate)
             publish(client, payload, topic)
 
-            checkPrevious("announcements", client, id, today)
-            checkPrevious("changes", client, id, today)
+            newAnn = checkPrevious("announcements", client, id, today)
+            newChanges = checkPrevious("changes", client, id, today)
+            sendMeta(newAnn, newChanges, client, id)
 
     client.loop_stop()
 

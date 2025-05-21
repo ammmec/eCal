@@ -11,11 +11,8 @@ WEEKDAYS weekday = MONDAY; // Assumes it starts on a Monday
 char curr_class_pos;
 
 // Variables to check if the schedule needs to be refreshed
-char prevAnnouncements[256];
-char prevClasses[NUM_CLASSES][32];
-int16_t prevDurations[NUM_CLASSES];
-change_t prevChanged[NUM_CLASSES];
 char prevStartHour;
+uint16_t rawConfig = 0b000'1'0'0'000101'0000;
 
 bool updatedInfo = true;
 RTC_DATA_ATTR bool needRefresh = true;

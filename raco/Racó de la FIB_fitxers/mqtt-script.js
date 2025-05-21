@@ -68,10 +68,35 @@ function buildPayload(start, duration, type, name = '') {
   return payload;
 }
 
+function updateMeta(client, topic, ann, change) {
+  let prevMeta = null;
+
+  const handler = (recTopic, message) => {
+    if (recTopic === topic) prevMeta = message;
+  };
+
+  client.on('message', handler);
+
+  client.subscribe(topic, () => {
+    setTimeout(() => {
+      client.removeListener('message', handler);
+      client.unsubscribe(topic);
+      const meta = prevMeta[0] | ((ann << 3) | (change << 4));
+      const payload = new Uint8Array(1);
+      payload[0] = meta;
+
+      client.publish(topic, payload, { retain: true }, () => {
+        console.log(payload);
+        console.log('Published to topic: ' + topic);
+      });
+    }, 5000);
+  });
+}
+
 function sendMQTTMessage() {
   if (!document.getElementById('deviceCheckbox').checked) return false; // If there is no intention to send information to the broker, do not
 
-  const announcement = (document.getElementById('MQTTmessage').value).normalize("NFD").replace(/[\u0300-\u036f]/g, "")+"\n\n"; // The announcement to send to the announcements topic
+  const announcement = (document.getElementById('MQTTmessage').value).normalize("NFD").replace(/[\u0300-\u036f]/g, "") + "\n\n"; // The announcement to send to the announcements topic
   let type = document.getElementById('type').value === 'info' ? 'info' : document.querySelector('input[name="option"]:checked')?.value; // Type of message to send
 
   const client = mqtt.connect('wss://u7febd84.ala.us-east-1.emqxsl.com:8084/mqtt', options); // Connect to MQTT
@@ -92,12 +117,21 @@ function sendMQTTMessage() {
 
   let className = "GEI AE 10T"; // As it is a prototype, the name is a placeholder
 
+  let newAnn = false;
+
   // Send an announcement if it was written
-  if (announcement != '') publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
-  if (type === 'info') return false;
+  if (announcement != "\n\n") {
+    publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
+    newAnn = true;
+  }
+  if (type === 'info') {
+    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), true, false);
+    return false;
+  }
 
   if (type != "swap") {
     publishMessage(client, makeTopic('changes', sendClassroom, sendDate), buildPayload(sendHour, 2, type, type === 'add' ? className : ''));
+    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
     return false;
   }
 
@@ -108,19 +142,22 @@ function sendMQTTMessage() {
 
   if (formatDate(new Date(document.getElementById('dateChange').value)) === formatDate(new Date(document.getElementById('dateTo').value))
     && sendClassroom === select.options[select.selectedIndex].text) {
-    if (announcement != '') publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
+    if (announcement != "\n\n") publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
     const concatPayload = new Uint8Array(payloadCancel.length + payloadAdd.length);
     concatPayload.set(payloadCancel, 0);
     concatPayload.set(payloadAdd, payloadCancel.length);
 
     publishMessage(client, makeTopic('changes', sendClassroom, sendDate), concatPayload);
+    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
   }
   else {
     publishMessage(client, makeTopic('changes', sendClassroom, sendDate), payloadCancel);
+    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
     sendClassroom = select.options[select.selectedIndex].text;
     sendDate = formatDate(new Date(document.getElementById('dateTo').value));
     if (sendDate === formatDate(new Date())) sendDate = '';
     publishMessage(client, makeTopic('changes', sendClassroom, sendDate), payloadAdd);
+    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
   }
   return false;
 }

@@ -1,7 +1,7 @@
 #include "mqtt.h"
 #define uS2M 1000000ULL //1000000ULL*60  // Conversion from micro seconds to minutes
 // Time the microcontroller will be asleep for in different moments
-#define RETRY_SLEEP 5U
+#define RETRY_SLEEP (rawConfig>>4)&0x03F//5U
 #define NIGHT_SLEEP 9U // 10 hours: 9 + offset
 #define WEEKEND_SLEEP 57U // 58 hours (10 for morning, 48 for weekend): 57 + offset
 
@@ -24,8 +24,6 @@ void deepSleep(uint16_t minutes) {
 
 void setup() {
   Serial.begin(115200);
-  // setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule)
-  setupLayout(MINIMALIST_LAYOUT, true, false, true);
   delay(1000);  //Take some time to open up the Serial Monitor
 
   Serial.print("Good morning! Got schedule? ");
@@ -56,8 +54,9 @@ void setup() {
 
   disconnectMQTT();
   disconnectWiFi();
+    deepSleep(RETRY_SLEEP); // If it did not manage to get the full schedule, try again after some time
 
-  // Refresh display
+  /*// Refresh display
   Serial.println("Printing schedule");
   drawSchedule(classes, durations, announcements, changed);
   
@@ -75,7 +74,7 @@ void setup() {
 
   needRefresh = false;
   Serial.println("Hour sleep!");
-  deepSleep(hourSleep);
+  deepSleep(hourSleep);*/
 }
 
 void loop() {}
