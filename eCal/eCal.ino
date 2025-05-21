@@ -33,7 +33,7 @@ void setup() {
   connectWiFi(hourSleep);
   setupMQTT();
 
-  /*if (!gotSchedule) {
+  if (!gotSchedule) {
     if (getSchedule(classes, durations)) {
       gotSchedule = true;
       needRefresh = true;
@@ -48,7 +48,7 @@ void setup() {
       disconnectWiFi();
       deepSleep(RETRY_SLEEP); // If it did not manage to get the full schedule, try again after some time
     }
-  }*/
+  }
 
   getDetails();
 
