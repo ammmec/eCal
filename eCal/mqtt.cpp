@@ -24,15 +24,21 @@ bool setupMQTT() {
   while (!client.connected()) {
     String client_id = "esp32-client-";
     client_id += String(WiFi.macAddress());
+    #ifdef DEBUG
     Serial.printf("The client %s connects to the public MQTT broker\n", client_id.c_str());
+    #endif
     if (client.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
+        #ifdef DEBUG
         Serial.println("Public EMQX MQTT broker connected");
+        #endif
     } else {
         if (WiFi.status() != WL_CONNECTED) {
           if (!connectWiFi()) return false;
         }
+        #ifdef DEBUG
         Serial.print("failed with state ");
         Serial.print(client.state());
+        #endif
         delay(2000);
     }
   }
@@ -55,7 +61,9 @@ bool getSchedule(char classes[][32], int16_t durations[]) {
     client.loop();
     delay(500);
   }
+  #ifdef DEBUG
   Serial.println("Got schedule");
+  #endif
   return gotUpdate;
 }
 
@@ -68,7 +76,9 @@ bool getDetails() {
   newChange = false;
   newAnn = false;
   newConfig = -1;
+  #ifdef DEBUG
   Serial.println("Getting meta topic");
+  #endif
   if (!setupMQTT()) return false;
   client.setCallback(callbackMeta);
   client.subscribe(topics[META][0]); // Get status of topics
@@ -194,7 +204,9 @@ void getChanges(byte *payload, unsigned int length) {
   client.unsubscribe(topics[CHANGES][0]); // Unsubscribe from the topic
   byte cl[1] = {0x00};
   client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
+  #ifdef DEBUG
   Serial.println("Got changes");
+  #endif
 }
 
 void getAnnouncements(byte *payload, unsigned int length) {
@@ -216,11 +228,13 @@ void getAnnouncements(byte *payload, unsigned int length) {
   client.unsubscribe(topics[ANNOUNCEMENTS][0]); // Unsubscribe from the topic
   byte cl[1] = {0x00};
   client.publish(topics[ANNOUNCEMENTS][0], cl, 1, true); // Reset announcements made for future checks
+  #ifdef DEBUG
   Serial.println("Got announcements");
+  #endif
 }
 
 void getConfig(char *topic, byte *payload, unsigned int length) {
-  uint16_t receivedConfig = ((uint16_t)(payload[0]) << 8) | (uint16_t)payload[1];
+  uint16_t receivedConfig = ((uint8_t)(payload[0]) << 8) | (uint8_t)payload[1];
   #ifdef DEBUG
   Serial.print("Previous config: ");
   Serial.println(rawConfig, HEX);
