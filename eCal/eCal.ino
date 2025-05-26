@@ -1,7 +1,7 @@
 #include "mqtt.h"
-#define uS2M 1000000ULL  //1000000ULL*60  // Conversion from micro seconds to minutes
+#define uS2M  1000000ULL*60  // 1000000ULL // Conversion from micro seconds to minutes
 // Time the microcontroller will be asleep for in different moments
-#define RETRY_SLEEP (rawConfig >> 4) & 0x03F  //5U
+#define RETRY_SLEEP (((rawConfig >> 4) & 0x03F) == 0x3F) ? 5U : (rawConfig >> 4) & 0x03F  //Default value if not changed yet
 #define NIGHT_SLEEP 9U                        // 10 hours: 9 + offset
 #define WEEKEND_SLEEP 57U                     // 58 hours (10 for morning, 48 for weekend): 57 + offset
 
@@ -14,11 +14,11 @@ RTC_DATA_ATTR bool gotSchedule = false;
 
 void deepSleep(uint16_t minutes) {
   esp_sleep_enable_timer_wakeup(minutes * uS2M);
-#ifdef DEBUG
+  #ifdef DEBUG
   Serial.println("Setup ESP32 to sleep for every " + String(minutes) + " minutes");
 
   Serial.println("Going to sleep now");
-#endif
+  #endif
   Serial.flush();
   esp_deep_sleep_start();
 }
@@ -27,12 +27,12 @@ void setup() {
   #ifdef DEBUG
   Serial.begin(115200);
   delay(1000);  //Take some time to open up the Serial Monitor
-  #endif
 
-  #ifdef DEBUG
   Serial.print("Good morning! Got schedule? ");
   Serial.println(gotSchedule);
   #endif
+
+  setupLayout();
 
   uint8_t hourSleep = 60;
   connectWiFi(hourSleep);

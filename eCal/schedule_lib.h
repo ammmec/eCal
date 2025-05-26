@@ -8,7 +8,7 @@
 #include <time.h>
 #include "wifi_secure.h"
 
-#define DEBUG true
+//#define DEBUG true
 
 // Pin definition
 #define PWR  D11  // 7
@@ -127,7 +127,7 @@ bool connectWiFi(uint8_t &minutesTilNextHour);
 bool connectWiFi();
 void disconnectWiFi();
 void restartData();
-void setupLayout(Layout l = DEFAULT_LAYOUT, bool lines = true, bool saveEnergy = false, bool staticSchedule = false);
+void setupLayout(uint16_t config = rawConfig, bool changed = false);
 void setLines(bool lines);
 void setNumClassesDisplayed(char nClasses);
 void drawNoSchedule();

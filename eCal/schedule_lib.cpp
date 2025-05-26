@@ -12,7 +12,7 @@ char curr_class_pos;
 
 // Variables to check if the schedule needs to be refreshed
 char prevStartHour;
-uint16_t rawConfig = 0b000'1'0'0'000101'0000;
+uint16_t rawConfig = 0x107F; //0b000'1'0'0'000111'1111;
 
 bool updatedInfo = true;
 RTC_DATA_ATTR bool needRefresh = true;
@@ -66,10 +66,28 @@ void restartData() {
 }
 
 // Must be called before drawing schedule for the first time. Sets up the indicated schedule
-void setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule) {
+void setupLayout(uint16_t settings, bool changed) {
+  Layout layout = static_cast<Layout>(settings>>13);
+  bool lines = (settings>>12)&0x01;
+  bool staticSchedule = (settings>>11)&0x01;
+  bool saveEnergy = (settings>>10)&0x01;
+
+  #ifdef DEBUG
+  Serial.print("Layout: ");
+  Serial.println(settings>>13);
+  Serial.print("Lines: ");
+  Serial.println(lines);
+  Serial.print("SaveEnergy: ");
+  Serial.println(saveEnergy);
+  Serial.print("staticSchedule: ");
+  Serial.println(staticSchedule);
+  #endif
+
   display.setRotation(layout == HORIZONTAL_LAYOUT ? 0 : 1);
   displayHeight = display.height();
   displayWidth = display.width();
+  if (!changed) return;
+
   switch (layout) {
     case DEFAULT_LAYOUT:
       config = {
@@ -582,8 +600,7 @@ uint8_t updateCurrentHour() {
   struct tm timeinfo;
   uint8_t attempts = 0;
 
-  while (!getLocalTime(&timeinfo) && (attempts++) < 3)
-    ;
+  while (!getLocalTime(&timeinfo) && (attempts++) < 3);
   currentHour = attempts < 3 ? timeinfo.tm_hour : currentHour + 1;
   uint16_t minute = timeinfo.tm_min;
   uint16_t minutesUntilNextHour = 55 - minute;  // To offset any RTC error. It should wake up at :55

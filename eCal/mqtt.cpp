@@ -97,6 +97,7 @@ bool getDetails() {
     client.subscribe(topics[CONFIG][newConfig]);
     ++numUpdates;
   }
+
   if (newChange) {
     client.subscribe(topics[CHANGES][0]); // Subscribe to changes topic
     ++numUpdates;
@@ -116,31 +117,27 @@ bool getDetails() {
 
 void callbackMeta(char *topic, byte *payload, unsigned int length) {
   gotUpdate = true;
+  uint8_t metaMsg = (uint8_t)payload[0];
   #ifdef DEBUG
   Serial.print("Meta package: ");
-  Serial.println(payload[0], HEX);
+  Serial.println(metaMsg, HEX);
   #endif
-  if (!(payload[0]&0x98)) { // No meta changes made
-    #ifdef DEBUG
-    Serial.println("No meta changes!");
-    #endif
-    client.unsubscribe(topics[META][0]); // Unsubscribe from the topic
-    return;
-  }
-  if (payload[0]&0x80) {
-    newConfig = ((payload[0])>>5)&0x03;
+
+
+  if (metaMsg&0x80 || (rawConfig&0x3F) == 0x3F) { // rawConfig&0x003F indicates that the layout was not setup yet
+    newConfig = ((metaMsg)>>5)&0x3;
     #ifdef DEBUG
     Serial.print("New configuration: ");
-    Serial.println(newConfig);
+    Serial.println(newConfig, HEX);
     #endif
   }
-  if (payload[0]&0x10) {
+  if (metaMsg&0x10) {
     newChange = true;
     #ifdef DEBUG
     Serial.println("New change");
     #endif
   }
-  if (payload[0]&0x08) {
+  if (metaMsg&0x08) {
     newAnn = true;
     #ifdef DEBUG
     Serial.println("New Announcement");
@@ -148,7 +145,7 @@ void callbackMeta(char *topic, byte *payload, unsigned int length) {
   }
   client.unsubscribe(topics[META][0]); // Unsubscribe from the topic
 
-  byte cl[1] = {payload[0]&0x60}; // Flag as read
+  byte cl[1] = {metaMsg&0x60}; // Flag as read
   client.publish(topics[META][0], cl, 1, true); // Reset changes made for future checks
 }
 
@@ -244,24 +241,12 @@ void getConfig(char *topic, byte *payload, unsigned int length) {
 
   if (receivedConfig != rawConfig) {
     needRefresh = true;
-    Layout l = static_cast<Layout>((uint8_t)(payload[0]>>5));
-    bool lines = ((uint8_t)payload[0]>>4)&0x01;
-    bool saveEnergy = ((uint8_t)payload[0]>>3)&0x01;
-    bool staticSchedule = ((uint8_t)payload[0]>>2)&0x01;
-    // setupLayout(Layout layout, bool lines, bool saveEnergy, bool staticSchedule)
-    setupLayout(l, lines, saveEnergy, staticSchedule);
     #ifdef DEBUG
-    Serial.print("Layout: ");
-    Serial.println(((uint8_t)(payload[0]>>5)));
-    Serial.print("Lines: ");
-    Serial.println(lines);
-    Serial.print("SaveEnergy: ");
-    Serial.println(saveEnergy);
-    Serial.print("staticSchedule: ");
-    Serial.println(staticSchedule);
     Serial.print("Retry time: ");
     Serial.println((receivedConfig>>4)&0x03F);
     #endif
+    // setupLayout(uint16_t rawConfig, bool changed)
+    setupLayout(receivedConfig, true);
     rawConfig = receivedConfig;
   }
 }

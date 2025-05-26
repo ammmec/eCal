@@ -154,4 +154,5 @@ function sendMQTT() {
     */
 
     sendData(client, level, building, floor, classroom, override, buildConfig(layout, lines, static, energy, retry));
+    alert("Configuració enviada correctament");
 }

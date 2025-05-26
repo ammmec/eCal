@@ -125,13 +125,15 @@ function sendMQTTMessage() {
     newAnn = true;
   }
   if (type === 'info') {
-    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), true, false);
+    if (sendDate === '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), true, false);
+    alert("Missatge enviat!");
     return false;
   }
 
   if (type != "swap") {
     publishMessage(client, makeTopic('changes', sendClassroom, sendDate), buildPayload(sendHour, 2, type, type === 'add' ? className : ''));
-    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
+    if (sendDate === '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
+    alert("Canvi enviat!");
     return false;
   }
 
@@ -142,22 +144,27 @@ function sendMQTTMessage() {
 
   if (formatDate(new Date(document.getElementById('dateChange').value)) === formatDate(new Date(document.getElementById('dateTo').value))
     && sendClassroom === select.options[select.selectedIndex].text) {
-    if (announcement != "\n\n") publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
+    if (announcement != "\n\n") {
+      publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
+    }
     const concatPayload = new Uint8Array(payloadCancel.length + payloadAdd.length);
     concatPayload.set(payloadCancel, 0);
     concatPayload.set(payloadAdd, payloadCancel.length);
 
     publishMessage(client, makeTopic('changes', sendClassroom, sendDate), concatPayload);
-    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
+    if (sendDate === '') {
+      updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
+    }
   }
   else {
     publishMessage(client, makeTopic('changes', sendClassroom, sendDate), payloadCancel);
-    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
+    if (sendDate === '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
     sendClassroom = select.options[select.selectedIndex].text;
     sendDate = formatDate(new Date(document.getElementById('dateTo').value));
-    if (sendDate === formatDate(new Date())) sendDate = '';
+    if (sendDate === formatDate(new Date())) sendDate === '';
     publishMessage(client, makeTopic('changes', sendClassroom, sendDate), payloadAdd);
-    if (sendDate = '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
+    if (sendDate === '') updateMeta(client, makeTopic("meta", sendClassroom, sendDate), newAnn, true);
   }
+  alert("Canvi enviat!");
   return false;
 }
