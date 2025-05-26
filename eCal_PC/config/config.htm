@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ca">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Configuració pantalles</title>
+  <link href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="config.js"></script>
+<script src="mqtt_secure.js"></script>
+
+<body>
+  <header class="d-flex align-items-center bg-primary px-4 py-3" style="background-color: #007cc1;">
+    <img src="img/logo_FIB.png" alt="Logo" style="height:60px; margin-right:10px;">
+    <h1 class="text-light mb-0">| Configuració pantalles</h1>
+  </header>
+
+  <div class="container py-4">
+    <div class="row" style="min-height: 80vh;">
+      <!-- Left Column (70%) -->
+      <div class="col-md-8 d-flex flex-column justify-content-between">
+        <div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Abast del missatge:</label>
+            <div style="display: flex;">
+              <div style="flex: 1;">
+                <input type="radio" name="radioOption" value="global" id="global" class="form-check-input" checked>
+                <label for="radio1" class="form-check-label">Global</label>
+              </div>
+              <div style="flex: 1;">
+                <input type="radio" name="radioOption" value="building" id="building" class="form-check-input">
+                <label for="radio2" class="form-check-label">Edifici</label>
+              </div>
+              <div style="flex: 1;">
+                <input type="radio" name="radioOption" value="floor" id="floor" class="form-check-input">
+                <label for="radio3" class="form-check-label">Planta</label>
+              </div>
+              <div style="flex: 1;">
+                <input type="radio" name="radioOption" value="classroom" id="classroom" class="form-check-input">
+                <label for="radio4" class="form-check-label">Aula</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col" id="dropdown1a">
+              <select id="dropdown1" multiple></select>
+            </div>
+            <div class="col" id="dropdown2a">
+              <select id="dropdown2" multiple></select>
+            </div>
+            <div class="col" id="dropdown3a">
+              <select id="dropdown3" multiple></select>
+            </div>
+          </div>
+
+          <div class="form-check mb-3"
+            title="Aquesta opció eliminarà qualsevol configuració que s'hagi fet anteriorment a un nivell més específic.">
+            <input class="form-check-input" type="checkbox" id="override">
+            <label class="form-check-label" for="override">Substituir altres configuracions? <span><i
+                  class="fas fa-circle-info" style="color: #007cc1;"></i></span></label>
+          </div>
+
+          <div class="mb-3">
+            <label for="layoutDropdown" class="form-label fw-bold">Disseny</label>
+            <select id="layoutDropdown" class="form-select">
+              <option selected disabled>Disseny</option>
+              <option data-name="0" value="img/default">Per defecte</option>
+              <option data-name="1" value="img/minimalist">Minimalista</option>
+              <option data-name="2" value="img/simple">Simple</option>
+              <option data-name="3" value="img/verbose">Verbose</option>
+              <option data-name="4" value="img/horizontal">Horitzontal</option>
+            </select>
+          </div>
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="linesCheckbox" checked>
+            <label class="form-check-label" for="linesCheckbox">Línies</label>
+          </div>
+          <div class="form-check mb-2" title="Quan aquesta opció està desactivada, l'hora actual es situa a la part superior de l'horari si és possible, sense ensenyar classes que ja han passat.
+Si es desactiva, es mostra l'horari de matí si és el matí, o l'horari de tarda.
+Aquesta opció no té cap efecte en els dissenys que mostren totes les hores del dia.">
+            <input class="form-check-input" type="checkbox" id="static">
+            <label class="form-check-label" for="static">Horari estàtic <span> <i class="fas fa-circle-info"
+                  style="color: #007cc1;"></i></span></label>
+          </div>
+          <div class="form-check mb-3" title="Si el mode estalvi d'energia està activat, evita que el dispositiu refresqui la pantalla quan no és necessari. 
+Per tant, no es marca l'hora que és per reduir el nombre de refrescs.
+Aquesta opció és ideal pels dispositius al soterrani, on no hi ha llum solar.">
+            <input class="form-check-input" type="checkbox" id="energy">
+            <label class="form-check-label" for="energy">Mode estalvi energia <span><i class="fas fa-circle-info"
+                  style="color: #007cc1;"></i></span></label>
+          </div>
+
+          <div class="mb-3" title="Aquest valor indica quants minuts el dispositiu s'espera abans de reintentar la connexió al Wi-Fi si ha fallat.
+Com més petit sigui el valor, més probable és que s'obtingui internet ràpidament, però també gastarà més energia.">
+            <label for="numberInput" class="form-label fw-bold">Minuts per reintentar connexió: <span><i
+                  class="fas fa-circle-info" style="color: #007cc1;"></i></span></label>
+            <input type="number" id="numberInput" name="numberInput" style="max-width: 100px;" class="form-control"
+              min="0" max="63" step="1" value="5">
+          </div>
+        </div>
+
+        <!-- Bottom Left Button -->
+        <div class="pt-3">
+          <button type="button" class="btn btn-secondary w-100" style="max-width: 200px;" onclick="resetToDefault()">
+            <i class="fas fa-undo"></i> Valors per defecte
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column (30%) -->
+      <div class="col-md-4 d-flex flex-column justify-content-between align-items-center">
+        <div class="w-100 d-flex justify-content-center">
+          <img src="img/default_lines.png" class="img-fluid" id="displayImage"
+            style="max-width: 75%; height: auto; padding: 2px; border: 1px solid #6e6e6e;">
+        </div>
+
+        <!-- Bottom Right Button -->
+        <div class="pt-3 w-100">
+          <button type="button" class="btn btn-primary w-100" style="background-color: #007cc1;" onclick="sendMQTT()">
+            <i class="fas fa-check"></i> Enviar configuració
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const dropdown = document.getElementById('layoutDropdown');
+    const image = document.getElementById('displayImage');
+    const checkbox = document.getElementById('linesCheckbox');
+
+    function updateImage() {
+      const baseName = dropdown.value;
+      const hasLines = checkbox.checked;
+
+      const suffix = hasLines ? '_lines.png' : '.png';
+      image.src = baseName + suffix;
+    }
+
+    dropdown.addEventListener('change', updateImage);
+    checkbox.addEventListener('change', updateImage);
+  </script>
+
+  <script>
+    function resetToDefault() {
+      document.getElementById('numberInput').value = 5;
+      document.getElementById('override').checked = false;
+      document.getElementById('layoutDropdown').value = "img/default";
+      document.getElementById('displayImage').src = "img/default_lines.png";
+      document.getElementById('linesCheckbox').checked = true;
+      document.getElementById('static').checked = false;
+      document.getElementById('energy').checked = false;
+    }
+  </script>
+
+  <script>
+    const dropdown1 = document.getElementById('dropdown1a');
+    const dropdown2 = document.getElementById('dropdown2a');
+    const dropdown3 = document.getElementById('dropdown3a');
+
+    function updateDropdownVisibility(value) {
+      switch (value) {
+        case 'global':
+          dropdown1.style.display = 'none';
+          dropdown2.style.display = 'none';
+          dropdown3.style.display = 'none';
+          break;
+        case 'building':
+          dropdown1.style.display = 'inline-block';
+          dropdown2.style.display = 'none';
+          dropdown3.style.display = 'none';
+          break;
+        case 'floor':
+          dropdown1.style.display = 'inline-block';
+          dropdown2.style.display = 'inline-block';
+          dropdown3.style.display = 'none';
+          break;
+        case 'classroom':
+          dropdown1.style.display = 'inline-block';
+          dropdown2.style.display = 'inline-block';
+          dropdown3.style.display = 'inline-block';
+          break;
+      }
+    }
+
+    document.querySelectorAll('input[name="radioOption"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        updateDropdownVisibility(radio.value);
+      });
+    });
+
+    // Initialize on page load
+    const selectedRadio = document.querySelector('input[name="radioOption"]:checked');
+    if (selectedRadio) {
+      updateDropdownVisibility(selectedRadio.value);
+    }
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  <script>
+    const aulaOptions = [
+      "A1S101", "A3204", "A4002", "A5001", "A5002", "A5101", "A5102",
+      "A5103", "A5104", "A5105", "A5106", "A5201", "A5202", "A5203",
+      "A5204", "A5205", "A5206", "A5E01", "A5E02", "A5S102", "A5S103",
+      "A5S104", "A5S108", "A5S109", "A5S111", "A5S113", "A6001", "A6002",
+      "A6101", "A6102", "A6103", "A6104", "A6105", "A6106", "A6201", "A6202",
+      "A6203", "A6204", "A6205", "A6206", "A6E01", "A6E02", "B4002", "B5S101",
+      "B5S201", "B5S202", "C5S202", "C5S203", "C6S301", "C6S302", "C6S303",
+      "C6S306", "C6S308", "C6S309", "D6003", "D6003bis", "D6004"
+    ];
+    const buildingDropdown = new Choices('#dropdown1', {
+      removeItemButton: true,
+      searchEnabled: true,
+      placeholder: true,
+      placeholderValue: "Edifici",
+      choices: [
+        { value: 'A1', label: 'A1' },
+        { value: 'A3', label: 'A3' },
+        { value: 'A4', label: 'A4' },
+        { value: 'A5', label: 'A5' },
+        { value: 'A6', label: 'A6' },
+        { value: 'B4', label: 'B4' },
+        { value: 'B5', label: 'B5' },
+        { value: 'B6', label: 'B6' },
+        { value: 'C5', label: 'C5' },
+        { value: 'C6', label: 'C6' },
+        { value: 'D6', label: 'D6' }
+      ]
+    });
+
+    const floorDropdown = new Choices('#dropdown2', {
+      removeItemButton: true,
+      searchEnabled: true,
+      placeholder: true,
+      placeholderValue: "Planta",
+      choices: [
+        { value: '2', label: '2' },
+        { value: '1', label: '1' },
+        { value: 'E', label: 'E' },
+        { value: '0', label: '0' },
+        { value: 'S', label: 'S' }
+      ]
+    });
+
+    const aulaDropdown = new Choices('#dropdown3', {
+      removeItemButton: true,
+      searchEnabled: true,
+      placeholder: true,
+      placeholderValue: "Aula"
+    });
+
+    function updateAulaDropdown() {
+      const buildings = buildingDropdown.getValue().map(choice => choice.value);
+      const floors = floorDropdown.getValue().map(choice => choice.value);
+
+      let filtered = aulaOptions;
+
+      if (buildings.length && floors.length) {
+        filtered = aulaOptions.filter(aula =>
+          buildings.some(b => floors.some(f => aula.startsWith(`${b}${f}`)))
+        );
+      } else if (buildings.length) {
+        filtered = aulaOptions.filter(aula =>
+          buildings.some(b => aula.startsWith(b))
+        );
+      } else if (floors.length) {
+        filtered = aulaOptions.filter(aula =>
+          floors.some(f => aula[2] === f)
+        );
+      }
+
+      const aulaChoices = filtered.map(id => ({ value: id, label: id }));
+      aulaDropdown.setChoices(aulaChoices, 'value', 'label', true);
+    }
+
+    // Recompute choices when building or floor changes
+    document.getElementById('dropdown1').addEventListener('change', updateAulaDropdown);
+    document.getElementById('dropdown2').addEventListener('change', updateAulaDropdown);
+    document.addEventListener('DOMContentLoaded', () => {
+      updateAulaDropdown();
+    });
+  </script>
+</body>
+
+</html>

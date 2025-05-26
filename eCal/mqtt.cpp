@@ -220,17 +220,6 @@ void getAnnouncements(byte *payload, unsigned int length) {
 }
 
 void getConfig(char *topic, byte *payload, unsigned int length) {
-  if ((payload[0]>>5) == 0b111) { // Not an actual configuration, subscribe to the the topic with the information, make it more generalized
-    --gotUpdate;
-    #ifdef DEBUG
-    Serial.print("No config in ");
-    Serial.println(topic);
-    #endif
-    client.unsubscribe(topic); // Unsubscribe from the topic
-    client.subscribe(topics[CONFIG][(payload[0]>>3)&0x03]); // Most specialized topic with the configuration
-    return;
-  }
-
   uint16_t receivedConfig = ((uint16_t)(payload[0]) << 8) | (uint16_t)payload[1];
   #ifdef DEBUG
   Serial.print("Previous config: ");
