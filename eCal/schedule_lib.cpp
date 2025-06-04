@@ -83,7 +83,7 @@ void setupLayout(uint16_t settings, bool changed) {
   Serial.println(staticSchedule);
   #endif
 
-  display.setRotation(layout == HORIZONTAL_LAYOUT ? 0 : 1);
+  display.setRotation(layout == HORIZONTAL_LAYOUT ? 2 : 1);
   displayHeight = display.height();
   displayWidth = display.width();
   if (!changed) return;
@@ -182,7 +182,7 @@ void setupLayout(uint16_t settings, bool changed) {
       break;
 
     case HORIZONTAL_LAYOUT:
-      display.setRotation(0);
+      display.setRotation(2);
       displayHeight = display.height();
       displayWidth = display.width();
 
