@@ -49,14 +49,16 @@ void setup() {
       }
       #ifdef DEBUG
       Serial.println("Did not get schedule... Retry sleep!");
-      disconnectMQTT();
       #endif
+      disconnectMQTT();
       disconnectWiFi();
       deepSleep(RETRY_SLEEP);  // If it did not manage to get the full schedule, try again after some time
     }
   }
 
   getDetails();
+  disconnectMQTT();
+  disconnectWiFi();
 
   // Refresh display
   #ifdef DEBUG
