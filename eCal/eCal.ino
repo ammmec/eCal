@@ -2,7 +2,7 @@
 #define uS2M  1000000ULL*60  // 1000000ULL // Conversion from micro seconds to minutes
 // Time the microcontroller will be asleep for in different moments
 #define RETRY_SLEEP (((rawConfig >> 4) & 0x03F) == 0x3F) ? 5U : (rawConfig >> 4) & 0x03F  //Default value if not changed yet
-#define NIGHT_SLEEP 9U                        // 10 hours: 9 + offset
+#define NIGHT_SLEEP 9U                        // 10 hours (21-07): 9 + offset
 #define WEEKEND_SLEEP 57U                     // 58 hours (10 for morning, 48 for weekend): 57 + offset
 
 int16_t durations[NUM_CLASSES] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -36,38 +36,42 @@ void setup() {
 
   uint8_t hourSleep = 60;
   connectWiFi(hourSleep);
-  setupMQTT();
 
-  if (!gotSchedule) {
-    if (getSchedule(classes, durations)) {
-      gotSchedule = true;
-      needRefresh = true;
-    } else {
-      if (needRefresh) {
-        drawNoSchedule();
-        needRefresh = false;
+  if (currentHour <= LAST_HOUR) {
+    setupMQTT();
+
+    if (!gotSchedule) {
+      if (getSchedule(classes, durations)) {
+        gotSchedule = true;
+        needRefresh = true;
+      } else {
+        if (needRefresh) {
+          drawNoSchedule();
+          needRefresh = false;
+        }
+        #ifdef DEBUG
+        Serial.println("Did not get schedule... Retry sleep!");
+        #endif
+        disconnectMQTT();
+        disconnectWiFi();
+        deepSleep(RETRY_SLEEP);  // If it did not manage to get the full schedule, try again after some time
       }
-      #ifdef DEBUG
-      Serial.println("Did not get schedule... Retry sleep!");
-      #endif
-      disconnectMQTT();
-      disconnectWiFi();
-      deepSleep(RETRY_SLEEP);  // If it did not manage to get the full schedule, try again after some time
     }
-  }
 
-  getDetails();
-  disconnectMQTT();
-  disconnectWiFi();
+    getDetails();
+    disconnectMQTT();
+    disconnectWiFi();
 
-  // Refresh display
-  #ifdef DEBUG
-  Serial.println("Printing schedule");
-  #endif
-
-  drawSchedule(classes, durations, announcements, changed);
+    // Refresh display
+    #ifdef DEBUG
+    Serial.println("Printing schedule");
+    #endif
   
-  if (currentHour > 21) {
+    drawSchedule(classes, durations, announcements, changed);
+  }
+  else {
+    disconnectWiFi();
+
     gotSchedule = false;
     restartData(); // prepare data for a new day (e.g. initialize arrays to 0)
 
@@ -75,6 +79,7 @@ void setup() {
       #ifdef DEBUG
       Serial.println("Weekend sleep!");
       #endif
+      // clearScreen();
       deepSleep(WEEKEND_SLEEP+hourSleep);
     }
     #ifdef DEBUG

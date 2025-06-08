@@ -6,7 +6,7 @@ GxEPD2_3C< GxEPD2_750c_Z08, GxEPD2_750c_Z08::HEIGHT / 4 > display(GxEPD2_750c_Z0
 uint16_t displayHeight;
 uint16_t displayWidth;
 LayoutConfig config;
-uint16_t currentHour = 8;
+uint16_t currentHour;
 WEEKDAYS weekday = MONDAY;  // Assumes it starts on a Monday
 char curr_class_pos;
 
@@ -62,7 +62,6 @@ void restartData() {
     changed[i] = NONE;
   }
   announcements[0] = '\0';
-  clearScreen();
 }
 
 // Must be called before drawing schedule for the first time. Sets up the indicated schedule
@@ -610,7 +609,7 @@ uint8_t updateCurrentHour() {
   }
   weekday = WEEKDAYS(timeinfo.tm_wday);  // Update which day of the week it is
 
-  currentHour = constrain(currentHour, START_HOUR, LAST_HOUR);
+  // currentHour = constrain(currentHour, START_HOUR, LAST_HOUR);
   return (uint8_t)minutesUntilNextHour;
 }
 
