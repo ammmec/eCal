@@ -43,8 +43,8 @@ def publish(client, msg, topic):
 # Get today's date (start_date <= today < end_date)
 def getToday():
     today = datetime.now()
-    startDate = today.strftime("%Y-%m-%d")
-    endDate = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+    startDate = (today - timedelta(days=17)).strftime("%Y-%m-%d")
+    endDate = (today - timedelta(days=16)).strftime("%Y-%m-%d")
     return startDate, endDate, today.strftime("%d%m%Y")
 
 # API call to get list of classrooms

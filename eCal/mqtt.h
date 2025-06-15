@@ -24,7 +24,7 @@ enum Messages {
 bool setupMQTT();
 void disconnectMQTT();
 bool getSchedule(char classes[][32], int16_t durations[]);
-bool getDetails();
+bool getDetails(bool getAnnCh = false);
 void getConfig(char *topic, byte *payload, unsigned int length);
 void getChanges(byte *payload, unsigned int length);
 void getAnnouncements(byte *payload, unsigned int length);

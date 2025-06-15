@@ -121,7 +121,9 @@ function sendMQTTMessage() {
 
   // Send an announcement if it was written
   if (announcement != "\n\n") {
-    publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
+    const encoder = new TextEncoder();
+    const announcementBytes = encoder.encode(announcement);
+    publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcementBytes);
     newAnn = true;
   }
   if (type === 'info') {
@@ -145,7 +147,9 @@ function sendMQTTMessage() {
   if (formatDate(new Date(document.getElementById('dateChange').value)) === formatDate(new Date(document.getElementById('dateTo').value))
     && sendClassroom === select.options[select.selectedIndex].text) {
     if (announcement != "\n\n") {
-      publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcement);
+      const encoder = new TextEncoder();
+      const announcementBytes = encoder.encode(announcement);
+      publishMessage(client, makeTopic('announcements', sendClassroom, sendDate), announcementBytes);
     }
     const concatPayload = new Uint8Array(payloadCancel.length + payloadAdd.length);
     concatPayload.set(payloadCancel, 0);

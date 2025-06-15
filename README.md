@@ -43,7 +43,6 @@ inline const char* password = PASSWORD OF WIFI GOES HERE;
 
 // MQTT Broker
 inline const char *mqtt_broker = LINK TO MQTT BROKER;
-inline const char *topic [] = {"+/A6/0/A6001", "+/A6/0", "+/A6", "+"};
 inline const char *mqtt_username = USERNAME IN BROKER;
 inline const char *mqtt_password = PASSWORD IN BROKER;
 inline const int mqtt_port = BROKER'S PORT;

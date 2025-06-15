@@ -18,7 +18,14 @@ bool updatedInfo = true;
 RTC_DATA_ATTR bool needRefresh = true;
 
 bool connectWiFi(uint8_t& minutesTilNextHour) {
+  WiFi.mode(WIFI_STA);
+  #ifdef DEBUG
+  Serial.println("Trying to connect to wifi");
+  #endif
   WiFi.begin(ssid, password);
+  #ifdef DEBUG
+  Serial.println("Did WiFi.begin");
+  #endif
   unsigned int startAttempt = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 7000) {  // Try to connect for 7 seconds. If it fails, put a WiFi error message
     #ifdef DEBUG
@@ -55,6 +62,10 @@ void disconnectWiFi() {
 
 void restartData() {
   needRefresh = true;
+
+  byte cl[1] = {0x00};
+  client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
+  client.publish(topics[ANNOUNCEMENTS][0], cl, 1, true); // Reset announcements made for future checks
 
   // Initialize durations to 0, no changes and no announcements
   for (int i = 0; i < NUM_CLASSES; ++i) {

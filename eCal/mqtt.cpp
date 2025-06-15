@@ -71,7 +71,7 @@ bool newChange;
 bool newAnn;
 char newConfig;
 
-bool getDetails() {
+bool getDetails(bool getAnnCh) {
   gotUpdate = 0;
   newChange = false;
   newAnn = false;
@@ -98,11 +98,11 @@ bool getDetails() {
     ++numUpdates;
   }
 
-  if (newChange) {
+  if (newChange || getAnnCh) {
     client.subscribe(topics[CHANGES][0]); // Subscribe to changes topic
     ++numUpdates;
   }
-  if (newAnn) {
+  if (newAnn || getAnnCh) {
     client.subscribe(topics[ANNOUNCEMENTS][0]); // Subscribe to announcement topic
     ++numUpdates;
   }
@@ -199,8 +199,8 @@ void getChanges(byte *payload, unsigned int length) {
     }
   }
   client.unsubscribe(topics[CHANGES][0]); // Unsubscribe from the topic
-  byte cl[1] = {0x00};
-  client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
+  // byte cl[1] = {0x00};
+  // client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
   #ifdef DEBUG
   Serial.println("Got changes");
   #endif
@@ -216,15 +216,18 @@ void getAnnouncements(byte *payload, unsigned int length) {
   }
   needRefresh = true; // If there are any changes the screen has to be refreshed
 
+  #ifdef DEBUG
+  for (int i = 0; i < length; ++i) Serial.print((char)payload[i]);
+  Serial.println();
+  #endif
+
   // Write announcements to appropiate array
-  if (announcements[0] == '\0') strncpy (announcements, (char*)payload, min(length, SIZE_ANNOUNCEMENTS)); // Announcements empty, just copy them
-  else { // Concatenate strings
-    strncat(announcements, (char*)payload, min(length, SIZE_ANNOUNCEMENTS - strlen(announcements) - 1));
-  }
+  strncpy (announcements, (char*)payload, min(length, SIZE_ANNOUNCEMENTS)); // Announcements empty, just copy them
+  announcements[min(length, SIZE_ANNOUNCEMENTS) - 1] = '\0';
 
   client.unsubscribe(topics[ANNOUNCEMENTS][0]); // Unsubscribe from the topic
-  byte cl[1] = {0x00};
-  client.publish(topics[ANNOUNCEMENTS][0], cl, 1, true); // Reset announcements made for future checks
+  // byte cl[1] = {0x00};
+  // client.publish(topics[ANNOUNCEMENTS][0], cl, 1, true); // Reset announcements made for future checks
   #ifdef DEBUG
   Serial.println("Got announcements");
   #endif

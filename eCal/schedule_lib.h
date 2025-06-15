@@ -105,7 +105,7 @@ RTC_DATA_ATTR extern uint16_t currentHour;
 extern WEEKDAYS weekday;
 extern char curr_class_pos; // Index of current class in class array
 
-#define SIZE_ANNOUNCEMENTS 256U
+#define SIZE_ANNOUNCEMENTS 1024U
 RTC_DATA_ATTR extern bool needRefresh;
 RTC_DATA_ATTR extern char announcements[SIZE_ANNOUNCEMENTS];
 RTC_DATA_ATTR extern char classes[NUM_CLASSES][32];
