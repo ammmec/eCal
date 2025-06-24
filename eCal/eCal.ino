@@ -77,6 +77,7 @@ void setup() {
 
     gotSchedule = false;
     restartData(); // prepare data for a new day (e.g. initialize arrays to 0)
+    sendVoids(); // Send 0s to announcement/changes channels
 
     if (weekday == FRIDAY) {
       #ifdef DEBUG

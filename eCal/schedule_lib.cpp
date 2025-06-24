@@ -63,10 +63,6 @@ void disconnectWiFi() {
 void restartData() {
   needRefresh = true;
 
-  byte cl[1] = {0x00};
-  client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
-  client.publish(topics[ANNOUNCEMENTS][0], cl, 1, true); // Reset announcements made for future checks
-
   // Initialize durations to 0, no changes and no announcements
   for (int i = 0; i < NUM_CLASSES; ++i) {
     durations[i] = 0;

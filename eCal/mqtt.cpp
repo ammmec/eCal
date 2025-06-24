@@ -307,3 +307,9 @@ void callbackSchedule(char *topic, byte *payload, unsigned int length) {
   #endif
   client.unsubscribe(topics[SCHEDULE][0]); // Unsubscribe from the topic
 }
+
+void sendVoids() {
+  byte cl[1] = {0x00};
+  client.publish(topics[CHANGES][0], cl, 1, true); // Reset changes made for future checks
+  client.publish(topics[ANNOUNCEMENTS][0], cl, 1, true); // Reset announcements made for future checks
+}

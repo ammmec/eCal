@@ -8,7 +8,7 @@
 #include <time.h>
 #include "wifi_secure.h"
 
-//#define DEBUG true
+#define DEBUG true
 
 // Pin definition
 #define PWR  D11  // 7

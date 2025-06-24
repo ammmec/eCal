@@ -31,5 +31,6 @@ void getAnnouncements(byte *payload, unsigned int length);
 void callbackMeta(char *topic, byte *payload, unsigned int length);
 void callbackDetails(char *topic, byte *payload, unsigned int length);
 void callbackSchedule(char *topic, byte *payload, unsigned int length);
+void sendVoids();
 
 #endif
